@@ -102,7 +102,7 @@ class WebhookTrigger {
                 body: reqPayload,
                 headers,
                 timeout: {
-                    request: 2 * 1000
+                    request: 10 * 1000
                 },
                 retry: {
                     limit: process.env.NODE_ENV?.startsWith('test') ? 0 : 5
