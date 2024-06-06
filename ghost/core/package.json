@@ -50,7 +50,8 @@
     "lint:test": "eslint -c test/.eslintrc.js --ignore-path test/.eslintignore 'test/**/*.js' --cache",
     "lint:code": "yarn lint:server && yarn lint:shared && yarn lint:frontend",
     "lint": "yarn lint:server && yarn lint:shared && yarn lint:frontend && yarn lint:test",
-    "prepack": "node monobundle.js"
+    "prepack": "node monobundle.js",
+    "postpack": "mkdir -p package && cp yarn.lock package/yarn.lock && gunzip ghost-$npm_package_version.tgz && tar rf ghost-$npm_package_version.tar package/yarn.lock && gzip ghost-$npm_package_version.tar && rm package/yarn.lock && mv ghost-$npm_package_version.tar.gz ghost-$npm_package_version.tgz"
   },
   "engines": {
     "node": "^18.12.1 || ^20.11.1",
