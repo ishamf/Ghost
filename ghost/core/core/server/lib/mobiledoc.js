@@ -3,6 +3,7 @@ const errors = require('@tryghost/errors');
 const logging = require('@tryghost/logging');
 const config = require('../../shared/config');
 const storage = require('../adapters/storage');
+const { postprocess } = require('./postprocess');
 
 let cardFactory;
 let cards;
@@ -71,6 +72,10 @@ module.exports = {
         }
 
         return mobiledocHtmlRenderer;
+    },
+
+    async render(mobiledoc) {
+        return await postprocess(this.mobiledocHtmlRenderer.render(mobiledoc));
     },
 
     get htmlToMobiledocConverter() {

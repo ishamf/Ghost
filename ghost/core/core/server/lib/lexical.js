@@ -3,6 +3,7 @@ const errors = require('@tryghost/errors');
 const urlUtils = require('../../shared/url-utils');
 const config = require('../../shared/config');
 const storage = require('../adapters/storage');
+const {postprocess} = require('./postprocess');
 
 let nodes;
 let lexicalHtmlRenderer;
@@ -102,7 +103,7 @@ module.exports = {
             getCollectionPosts
         }, userOptions);
 
-        return await this.lexicalHtmlRenderer.render(lexical, options);
+        return await postprocess(await this.lexicalHtmlRenderer.render(lexical, options));
     },
 
     get nodes() {
