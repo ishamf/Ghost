@@ -1,7 +1,7 @@
 import { rehype } from 'rehype'
 import rehypeShiki from '@shikijs/rehype'
 
-const processor = rehype()
+const pipeline = rehype()
     .data('settings', { fragment: true })
     .use(rehypeShiki, {
         themes: {
@@ -10,13 +10,8 @@ const processor = rehype()
         }
     })
 
-/**
- *
- * @param {string} html
- * @returns
- */
-export async function pipeline(html) {
-    const file = await processor.process(html)
+export async function postprocess(html) {
+    const file = await pipeline.process(html)
 
     return String(file)
 }

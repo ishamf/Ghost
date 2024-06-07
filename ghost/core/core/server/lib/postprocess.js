@@ -2,9 +2,9 @@ const postprocessPromise = import('./postprocess-pipeline.mjs');
 
 module.exports = {
     async postprocess(html) {
-        const { pipeline } = await postprocessPromise;
+        const { postprocess: postprocessEsm } = await postprocessPromise;
 
-        const highlightedHtml = await pipeline(html);
+        const highlightedHtml = await postprocessEsm(html);
 
         return highlightedHtml;
     }
