@@ -1,5 +1,5 @@
 import { rehype } from 'rehype'
-import rehypeStarryNight from './rehypeStarryNight.mjs'
+import rehypeShiki from '@shikijs/rehype'
 
 /**
  *
@@ -9,7 +9,12 @@ import rehypeStarryNight from './rehypeStarryNight.mjs'
 export async function pipeline(html) {
     const file = await rehype()
         .data('settings', { fragment: true })
-        .use(rehypeStarryNight)
+        .use(rehypeShiki, {
+            themes: {
+                light: 'github-light',
+                dark: 'dark-plus',
+            }
+        })
         .process(html)
 
     return String(file)
