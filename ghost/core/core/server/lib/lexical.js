@@ -4,6 +4,7 @@ const urlUtils = require('../../shared/url-utils');
 const config = require('../../shared/config');
 const labs = require('../../shared/labs');
 const storage = require('../adapters/storage');
+const {postprocess} = require('./postprocess');
 
 let nodes;
 let lexicalHtmlRenderer;
@@ -106,7 +107,7 @@ module.exports = {
             }
         }, userOptions);
 
-        return await this.lexicalHtmlRenderer.render(lexical, options);
+        return await postprocess(await this.lexicalHtmlRenderer.render(lexical, options));
     },
 
     get nodes() {
