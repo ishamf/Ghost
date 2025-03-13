@@ -78,10 +78,9 @@ async function initDatabase({config}) {
  * @param {object} options
  * @param {object} options.ghostServer
  * @param {object} options.config
- * @param {object} options.bootLogger
  * @param {boolean} options.frontend
  */
-async function initCore({ghostServer, config, bootLogger, frontend}) {
+async function initCore({ghostServer, config, frontend}) {
     debug('Begin: initCore');
 
     // URL Utils is a bit slow, put it here so the timing is visible separate from models
@@ -110,15 +109,10 @@ async function initCore({ghostServer, config, bootLogger, frontend}) {
     // The URLService is a core part of Ghost, which depends on models.
     debug('Begin: Url Service');
     const urlService = require('./server/services/url');
-    const urlServiceStart = Date.now();
     // Note: there is no await here, we do not wait for the url service to finish
     // We can return, but the site will remain in maintenance mode until this finishes
     // This is managed on request: https://github.com/TryGhost/Ghost/blob/main/core/app.js#L10
     urlService.init({
-        onFinished: () => {
-            bootLogger.metric('url-service', urlServiceStart);
-            bootLogger.log('URL Service Ready');
-        },
         urlCache: !frontend // hacky parameter to make the cache initialization kick in as we can't initialize labs before the boot
     });
     debug('End: Url Service');
@@ -336,8 +330,6 @@ async function initServices() {
     const postsPublic = require('./server/services/posts-public');
     const slackNotifications = require('./server/services/slack-notifications');
     const mediaInliner = require('./server/services/media-inliner');
-    const collections = require('./server/services/collections');
-    const modelToDomainEventInterceptor = require('./server/services/model-to-domain-event-interceptor');
     const mailEvents = require('./server/services/mail-events');
     const donationService = require('./server/services/donations');
     const recommendationsService = require('./server/services/recommendations');
@@ -383,8 +375,6 @@ async function initServices() {
         linkTracking.init(),
         emailSuppressionList.init(),
         slackNotifications.init(),
-        collections.init(),
-        modelToDomainEventInterceptor.init(),
         mediaInliner.init(),
         mailEvents.init(),
         donationService.init(),
@@ -459,7 +449,7 @@ async function initBackgroundServices({config}) {
         await emailAnalyticsJobs.scheduleRecurringJobs();
     }
 
-    const updateCheck = require('./server/update-check');
+    const updateCheck = require('./server/services/update-check');
     updateCheck.scheduleRecurringJobs();
 
     const milestonesService = require('./server/services/milestones');
@@ -567,7 +557,7 @@ async function bootGhost({backend = true, frontend = true, server = true} = {}) 
 
         // Step 4 - Load Ghost with all its services
         debug('Begin: Load Ghost Services & Apps');
-        await initCore({ghostServer, config, bootLogger, frontend});
+        await initCore({ghostServer, config, frontend});
 
         // Instrument the knex instance and connection pool if prometheus is enabled
         // Needs to be after initCore because the pool is destroyed and recreated in initCore, which removes the event listeners
