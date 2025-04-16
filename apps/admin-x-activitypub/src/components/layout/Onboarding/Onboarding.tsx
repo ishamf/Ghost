@@ -1,8 +1,6 @@
-import React, {useState} from 'react';
-import Step1 from './Step1';
-import Step3 from './Step3';
-import {Button} from '@tryghost/shade';
-import {parseAccessibilitySettings, updateAccessibilitySettings} from '@utils/accessibility';
+import React from 'react';
+import {ApOnboardingSettings, parseAccessibilitySettings, updateAccessibilitySettings} from '@utils/accessibility';
+import {Outlet} from '@tryghost/admin-x-framework';
 import {useCurrentUser} from '@tryghost/admin-x-framework/api/currentUser';
 import {useEditUser} from '@tryghost/admin-x-framework/api/users';
 
@@ -10,22 +8,28 @@ export const useOnboardingStatus = () => {
     const {data: currentUser} = useCurrentUser();
     const {mutateAsync: updateUser} = useEditUser();
 
-    const isOnboarded = React.useMemo(() => {
+    const settings = React.useMemo(() => {
         if (!currentUser?.accessibility) {
-            return false;
+            return {};
         }
-        const settings = parseAccessibilitySettings(currentUser.accessibility);
-        return !!settings.apOnboarded;
+        const parsed = parseAccessibilitySettings(currentUser.accessibility);
+        return parsed.apOnboarding || {};
     }, [currentUser?.accessibility]);
 
-    const setOnboarded = React.useCallback(async (onboarded: boolean) => {
+    const updateSettings = React.useCallback(async (updates: Partial<ApOnboardingSettings>) => {
         if (!currentUser) {
             return;
         }
 
+        const currentSettings = parseAccessibilitySettings(currentUser.accessibility);
         const newSettings = updateAccessibilitySettings(
             currentUser.accessibility,
-            {apOnboarded: onboarded}
+            {
+                apOnboarding: {
+                    ...currentSettings.apOnboarding,
+                    ...updates
+                }
+            }
         );
 
         await updateUser({
@@ -34,46 +38,18 @@ export const useOnboardingStatus = () => {
         });
     }, [currentUser, updateUser]);
 
-    return {isOnboarded, setOnboarded};
+    return {
+        isOnboarded: !!settings.welcomeStepsFinished,
+        isExplainerClosed: !!settings.exploreExplainerClosed,
+        setOnboarded: (onboarded: boolean) => updateSettings({welcomeStepsFinished: onboarded}),
+        setExplainerClosed: (closed: boolean) => updateSettings({exploreExplainerClosed: closed})
+    };
 };
 
-const Step2: React.FC<{onNext: () => void}> = ({onNext}) => (
-    <div className='relative h-full'>
-        <div className='relative flex justify-between'>
-            <div className='flex flex-col gap-4 text-xl font-medium'>
-                <h1>Feel the network effect.</h1>
-                <div className='flex max-w-[600px] flex-col gap-4'>
-                    <p className='text-gray-800 dark:text-gray-600'>People who follow you can like, reply, repost & interact with your work. Their followers will see those interactions too, distributing your content even more widely, to a brand new audience.</p>
-                    <p className='text-gray-800 dark:text-gray-600'>Best of all, you get realtime feedback and visibility when something you’ve created is spreading fast across the social web.</p>
-                </div>
-            </div>
-            <Button className='min-w-60 bg-gradient-to-r from-purple-500 to-purple-600' size='lg' onClick={onNext}>Next →</Button>
-        </div>
-        <div className='mt-20'>
-            Step 2 content
-        </div>
-    </div>
-);
-
 const Onboarding: React.FC = () => {
-    const {setOnboarded} = useOnboardingStatus();
-    const [currentStep, setCurrentStep] = useState(1);
-
-    const handleComplete = async () => {
-        await setOnboarded(true);
-    };
-
     return (
-        <div className='h-full px-14 pt-14'>
-            {currentStep === 1 && (
-                <Step1 onNext={() => setCurrentStep(2)} />
-            )}
-            {currentStep === 2 && (
-                <Step2 onNext={() => setCurrentStep(3)} />
-            )}
-            {currentStep === 3 && (
-                <Step3 onComplete={handleComplete} />
-            )}
+        <div className='h-full pt-14'>
+            <Outlet />
         </div>
     );
 };

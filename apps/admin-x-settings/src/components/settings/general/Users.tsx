@@ -216,6 +216,7 @@ const Users: React.FC<{ keywords: string[], highlight?: boolean }> = ({keywords,
         fetchNextPage
     } = useStaffUsers();
     const {updateRoute} = useRouting();
+    const {currentUser} = useGlobalData();
 
     const showInviteModal = () => {
         updateRoute('staff/invite');
@@ -298,13 +299,13 @@ const Users: React.FC<{ keywords: string[], highlight?: boolean }> = ({keywords,
                 link
                 onClick={() => fetchNextPage()}
             />}
-            {labs.staff2fa && (
+            {labs.staff2fa && !isEditorUser(currentUser) && (
                 <div className={`flex flex-col gap-6 ${users.length > 1 || invites.length > 0 ? '-mt-6' : ''}`}>
                     <Separator />
                     <div className='flex items-baseline justify-between'>
                         <div className='flex flex-col'>
                             <span className='text-[1.5rem] font-semibold tracking-tight'>Security settings</span>
-                            <span>Enable email 2FA for all staff logins</span>
+                            <span>Require email 2FA codes to be used on all staff logins</span>
                         </div>
                         <Toggle
                             checked={require2fa}
