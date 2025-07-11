@@ -8,7 +8,7 @@ const {stringMatching, anyEtag, anyUuid, anyContentLength, anyContentVersion} = 
 const models = require('../../../core/server/models');
 const {anyErrorId} = matchers;
 
-const CURRENT_SETTINGS_COUNT = 88;
+const CURRENT_SETTINGS_COUNT = 89;
 
 const settingsMatcher = {};
 
@@ -191,6 +191,7 @@ describe('Settings API', function () {
                     settings: matchSettingsArray(CURRENT_SETTINGS_COUNT)
                 })
                 .matchHeaderSnapshot({
+                    'content-length': anyContentLength,
                     'content-version': anyContentVersion,
                     etag: anyEtag
                 });
@@ -702,4 +703,3 @@ describe('Settings API', function () {
         });
     });
 });
-
