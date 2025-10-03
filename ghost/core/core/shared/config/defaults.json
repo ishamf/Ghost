@@ -168,9 +168,17 @@
         },
         "commentsCountAPI": {
             "maxAge": 0
+        },
+        "admin": {
+            "maxAge": 31536000
+        },
+        "theme": {
+            "maxAge": 31536000
         }
     },
     "optimization": {
+        "maxLimit": 100,
+        "allowLimitAll": false,
         "getHelper": {
             "timeout": {
                 "threshold": 5000,
@@ -204,7 +212,7 @@
     },
     "portal": {
         "url": "https://cdn.jsdelivr.net/ghost/portal@~{version}/umd/portal.min.js",
-        "version": "2.51"
+        "version": "2.53"
     },
     "sodoSearch": {
         "url": "https://cdn.jsdelivr.net/ghost/sodo-search@~{version}/umd/sodo-search.min.js",
@@ -221,7 +229,7 @@
     },
     "signupForm": {
         "url": "https://cdn.jsdelivr.net/ghost/signup-form@~{version}/umd/signup-form.min.js",
-        "version": "0.2"
+        "version": "0.3"
     },
     "tenor": {
         "googleApiKey": null,

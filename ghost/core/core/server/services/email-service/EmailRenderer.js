@@ -774,6 +774,13 @@ class EmailRenderer {
                     return this.createUnsubscribeUrl(member.uuid, {newsletterUuid});
                 },
                 required: true // Used in email headers
+            },
+            // Unique ID used for ad images to bypass ESP image proxies
+            {
+                id: 'uniqueid',
+                getValue: () => {
+                    return crypto.randomUUID();
+                }
             }
         ];
 
@@ -1234,6 +1241,7 @@ class EmailRenderer {
                     }, true) : null
             },
             preheader: this.#getEmailPreheader(post, segment, html),
+            preheaderSpacing: '&zwnj;&nbsp;'.repeat(75),
             html,
 
             post: {
@@ -1300,6 +1308,17 @@ class EmailRenderer {
             footerContent: newsletter.get('footer_content'),
             linkStyle,
             hasOutlineButtons,
+
+            // useful data
+            ctaBgColors: [
+                'grey',
+                'blue',
+                'green',
+                'yellow',
+                'red',
+                'pink',
+                'purple'
+            ],
 
             classes: {
                 container: clsx('container', {

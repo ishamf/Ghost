@@ -17,6 +17,7 @@ import TableOfContents, {TOCItem} from '@src/components/feed/TableOfContents';
 import articleBodyStyles from '@src/components/articleBodyStyles';
 import getReadingTime from '../../../utils/get-reading-time';
 import {Activity} from '@src/api/activitypub';
+import {cardsCSS, cardsJS} from '@src/utils/cards-assets';
 import {handleProfileClick} from '@src/utils/handle-profile-click';
 import {isPendingActivity} from '../../../utils/pending-activity';
 import {openLinksInNewTab} from '@src/utils/content-formatters';
@@ -82,6 +83,9 @@ const ArticleBody: React.FC<{
                 .has-sepia-bg {
                     --background-color: #FCF8F1;
                 }
+            </style>
+            <style>
+                ${cardsCSS}
             </style>
 
             <script>
@@ -149,15 +153,6 @@ const ArticleBody: React.FC<{
                 document.addEventListener('DOMContentLoaded', () => {
                     setupResizeObservers();
                     waitForImages();
-
-                    const script = document.createElement('script');
-                    script.src = '/public/cards.min.js';
-                    document.head.appendChild(script);
-
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = '/public/cards.min.css';
-                    document.head.appendChild(link);
                 });
             </script>
 
@@ -211,6 +206,9 @@ const ArticleBody: React.FC<{
                     ];
                     reframe(document.querySelectorAll(sources.join(',')));
                 })();
+            </script>
+            <script>
+                ${cardsJS}
             </script>
         </body>
         </html>
@@ -369,9 +367,9 @@ const ArticleBody: React.FC<{
 
     return (
         <div className='w-full pb-6'>
-            <div className='relative'>
+            <div className='relative -mx-6'>
                 {isLoading && (
-                    <div className='mx-auto mt-6 w-full max-w-[640px]'>
+                    <div className='mx-auto mt-6 w-full max-w-[640px] max-lg:px-4'>
                         <div className='mb-6 flex flex-col gap-2'>
                             <Skeleton className='h-8' />
                             <Skeleton className='h-8 w-full max-w-md' />
@@ -408,6 +406,8 @@ interface ReaderProps {
     postId: string;
     onClose?: () => void;
 }
+
+const scrollPositionCache = new Map<string, number>();
 
 export const Reader: React.FC<ReaderProps> = ({
     postId = null,
@@ -450,13 +450,7 @@ export const Reader: React.FC<ReaderProps> = ({
     const actor = activityData?.actor;
     const authors = activityData?.object?.metadata?.ghostAuthors;
 
-    const [replyCount, setReplyCount] = useState(object?.replyCount ?? 0);
-
-    useEffect(() => {
-        if (object?.replyCount !== undefined) {
-            setReplyCount(object.replyCount);
-        }
-    }, [object?.replyCount]);
+    const replyCount = object?.replyCount ?? 0;
 
     useEffect(() => {
         // Only set up infinite scroll if pagination is supported
@@ -501,12 +495,8 @@ export const Reader: React.FC<ReaderProps> = ({
         };
     }, [hasMoreChildren, isLoadingMoreTopLevelReplies, loadMoreChildren]);
 
-    function handleReplyCountChange(increment: number) {
-        setReplyCount((current: number) => current + increment);
-    }
-
     function handleDelete() {
-        handleReplyCountChange(-1);
+        // Reply count will be updated via cache invalidation
     }
 
     function toggleChain(chainId: string) {
@@ -694,14 +684,38 @@ export const Reader: React.FC<ReaderProps> = ({
 
     const navigate = useNavigate();
 
+    // Save scroll position when navigating away
+    useEffect(() => {
+        const container = modalRef.current;
+        return () => {
+            if (container && postId) {
+                scrollPositionCache.set(postId, container.scrollTop);
+            }
+        };
+    }, [postId]);
+
+    // Restore scroll position after content loads
+    useEffect(() => {
+        if (!isLoading && !isLoadingContent && postId && modalRef.current) {
+            const savedPosition = scrollPositionCache.get(postId);
+            if (savedPosition !== undefined && savedPosition > 0) {
+                setTimeout(() => {
+                    if (modalRef.current) {
+                        modalRef.current.scrollTop = savedPosition;
+                    }
+                }, 100);
+            }
+        }
+    }, [isLoading, isLoadingContent, postId]);
+
     if (isLoadingContent) {
         return (
             <div className={`max-h-full overflow-auto rounded-md ${backgroundColor === 'DARK' && 'dark'} ${(backgroundColor === 'LIGHT' || backgroundColor === 'SEPIA') && 'light'} ${COLOR_OPTIONS[backgroundColor].background}`}>
                 <div className='flex h-full flex-col'>
                     <div className='relative flex-1'>
-                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
+                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b max-md:h-[68px] ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
                             <div
-                                className='grid w-full px-8'
+                                className='grid w-full px-8 max-lg:px-4'
                                 style={{
                                     gridTemplateColumns: `1fr minmax(0,${currentGridWidth}) 1fr`
                                 }}
@@ -709,7 +723,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                 <div className='flex items-center'>
                                     <BackButton className={COLOR_OPTIONS[backgroundColor].button} onClick={onClose} />
                                 </div>
-                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3'>
+                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3 max-md:hidden'>
                                     <Skeleton className='size-10 rounded-full' />
                                     <div className='grow pt-1'>
                                         <Skeleton className='w-full' />
@@ -731,7 +745,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                 </div>
                             </div>
                         </div>
-                        <div className='relative flex-1'>
+                        <div className='relative flex-1 max-lg:px-4'>
                             <div className='mx-auto mt-11 w-full max-w-[640px]'>
                                 <div className='mb-6 flex flex-col gap-2'>
                                     <Skeleton className='h-8' />
@@ -753,9 +767,9 @@ export const Reader: React.FC<ReaderProps> = ({
             <div className={`max-h-full overflow-auto rounded-md ${backgroundColor === 'DARK' && 'dark'} ${(backgroundColor === 'LIGHT' || backgroundColor === 'SEPIA') && 'light'} ${COLOR_OPTIONS[backgroundColor].background}`}>
                 <div className='flex h-full flex-col'>
                     <div className='relative flex-1'>
-                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
+                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b max-md:h-[68px] ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
                             <div
-                                className='grid w-full px-8'
+                                className='grid w-full px-8 max-lg:px-4'
                                 style={{
                                     gridTemplateColumns: `1fr minmax(0,${currentGridWidth}) 1fr`
                                 }}
@@ -763,7 +777,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                 <div className='flex items-center'>
                                     <BackButton className={COLOR_OPTIONS[backgroundColor].button} onClick={onClose} />
                                 </div>
-                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3'>
+                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3 max-md:hidden'>
                                     <div className='grow text-center'>
                                         <span>Error loading article.</span>
                                     </div>
@@ -782,9 +796,9 @@ export const Reader: React.FC<ReaderProps> = ({
             <>
                 <div className='flex h-full flex-col'>
                     <div className='relative flex-1'>
-                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
+                        <div className={`sticky top-0 z-50 flex h-[102px] items-center justify-center rounded-t-md border-b max-md:h-[68px] ${COLOR_OPTIONS[backgroundColor].background} ${COLOR_OPTIONS[backgroundColor].border}`}>
                             <div
-                                className='grid w-full px-8'
+                                className='grid w-full px-8 max-lg:px-4'
                                 style={{
                                     gridTemplateColumns: `1fr minmax(0,${currentGridWidth}) 1fr`
                                 }}
@@ -792,7 +806,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                 <div className='flex items-center'>
                                     <BackButton className={COLOR_OPTIONS[backgroundColor].button} onClick={onClose} />
                                 </div>
-                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3'>
+                                <div className='col-[2/3] mx-auto flex w-full items-center gap-3 max-md:hidden'>
                                     <div className='relative z-10 pt-0.5'>
                                         <APAvatar author={actor}/>
                                     </div>
@@ -801,7 +815,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                             <span className='min-w-0 truncate whitespace-nowrap font-semibold text-black hover:underline dark:text-white'>{isLoadingContent ? <Skeleton className='w-20' /> : actor.name}</span>
                                         </div>
                                         <div className='flex w-full'>
-                                            {!isLoadingContent && <span className='text-gray-700 after:mx-1 after:font-normal after:text-gray-700 after:content-["·"]'>{getUsername(actor)}</span>}
+                                            {!isLoadingContent && <span className='truncate text-gray-700 after:mx-1 after:font-normal after:text-gray-700 after:content-["·"]'>{getUsername(actor)}</span>}
                                             <span className='text-gray-700'>{isLoadingContent ? <Skeleton className='w-[120px]' /> : renderTimestamp(object, !object.authored)}</span>
                                         </div>
                                     </div>
@@ -829,7 +843,7 @@ export const Reader: React.FC<ReaderProps> = ({
                                 onOpenChange={setIsTOCOpen}
                             />
                             {!isLoadingContent && <div className='grow overflow-y-auto'>
-                                <div className={`mx-auto px-8 pb-10 pt-5`} style={{maxWidth: currentMaxWidth}}>
+                                <div className={`mx-auto px-6 pb-10 pt-5`} style={{maxWidth: currentMaxWidth}}>
                                     <div className='flex flex-col items-center pb-8' id='object-content'>
                                         <ArticleBody
                                             authors={authors}
@@ -855,7 +869,6 @@ export const Reader: React.FC<ReaderProps> = ({
                                                 object={object}
                                                 repostCount={object.repostCount ?? 0}
                                                 onLikeClick={onLikeClick}
-                                                onReplyCountChange={handleReplyCountChange}
                                             />
                                         </div>
                                     </div>
@@ -866,8 +879,6 @@ export const Reader: React.FC<ReaderProps> = ({
                                     <div className='mx-auto w-full border-t border-black/[8%] dark:border-gray-950' style={{maxWidth: currentGridWidth}}>
                                         <APReplyBox
                                             object={object}
-                                            onReply={() => handleReplyCountChange(1)}
-                                            onReplyError={() => handleReplyCountChange(-1)}
                                         />
                                         <FeedItemDivider />
                                     </div>
@@ -900,6 +911,10 @@ export const Reader: React.FC<ReaderProps> = ({
                                                             repostCount={replyGroup.mainReply.object.repostCount ?? 0}
                                                             type='Note'
                                                             onClick={() => {
+                                                                const container = modalRef.current;
+                                                                if (container && postId) {
+                                                                    scrollPositionCache.set(postId, container.scrollTop);
+                                                                }
                                                                 navigate(`/notes/${encodeURIComponent(replyGroup.mainReply.id)}`);
                                                             }}
                                                             onDelete={handleDelete}
@@ -921,6 +936,10 @@ export const Reader: React.FC<ReaderProps> = ({
                                                                 repostCount={replyGroup.chain[0].object.repostCount ?? 0}
                                                                 type='Note'
                                                                 onClick={() => {
+                                                                    const container = modalRef.current;
+                                                                    if (container && postId) {
+                                                                        scrollPositionCache.set(postId, container.scrollTop);
+                                                                    }
                                                                     navigate(`/notes/${encodeURIComponent(replyGroup.chain[0].id)}`);
                                                                 }}
                                                                 onDelete={handleDelete}
@@ -948,6 +967,10 @@ export const Reader: React.FC<ReaderProps> = ({
                                                                     repostCount={chainItem.object.repostCount ?? 0}
                                                                     type='Note'
                                                                     onClick={() => {
+                                                                        const container = modalRef.current;
+                                                                        if (container && postId) {
+                                                                            scrollPositionCache.set(postId, container.scrollTop);
+                                                                        }
                                                                         navigate(`/notes/${encodeURIComponent(chainItem.id)}`);
                                                                     }}
                                                                     onDelete={handleDelete}

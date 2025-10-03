@@ -94,7 +94,8 @@ module.exports = {
             },
             feature: {
                 contentVisibility: labs.isSet('contentVisibility'),
-                emailCustomization: true // force on until Koenig has been bumped
+                emailCustomization: true, // force on until Koenig has been bumped
+                emailUniqueid: labs.isSet('emailUniqueid')
             },
             nodeRenderers: this.customNodeRenderers
         }, userOptions);

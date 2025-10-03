@@ -367,8 +367,8 @@ const NewNoteModal: React.FC<NewNoteModalProps> = ({children, replyTo, onReply, 
                                 <LoadingIndicator size='md' />
                             </div>
                         }
-                        <Button className='absolute right-3 top-3 size-8 bg-black/60 opacity-0 hover:bg-black/80 group-hover:opacity-100' onClick={handleClearImage}><LucideIcon.Trash2 /></Button>
-                        {!isImageUploading && <Button className={`absolute bottom-3 left-3 h-6 px-2 py-0 ${!showAltInput ? 'bg-black/60 hover:bg-black/80' : 'bg-green-500 hover:bg-green-500'}`} onClick={handleToggleAltInput}>Alt</Button>}
+                        <Button className='absolute right-3 top-3 size-8 bg-black/60 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100' onClick={handleClearImage}><LucideIcon.Trash2 /></Button>
+                        {!isImageUploading && <Button className={`absolute bottom-3 left-3 h-6 px-2 py-0 text-white ${!showAltInput ? 'bg-black/60 hover:bg-black/80' : 'bg-green-500 hover:bg-green-500'}`} onClick={handleToggleAltInput}>Alt</Button>}
                     </div>
                 }
                 {imagePreview && !isImageUploading && showAltInput &&
@@ -383,9 +383,9 @@ const NewNoteModal: React.FC<NewNoteModalProps> = ({children, replyTo, onReply, 
                         />
                     </div>
                 }
-                <DialogFooter className={`${isSticky ? 'sticky' : 'static'} bottom-0 bg-background py-6 dark:bg-[#101114]`}>
+                <DialogFooter className={`${isSticky ? 'sticky' : 'static'} bottom-0 flex-row bg-background py-6 dark:bg-[#101114]`}>
                     <Button className='mr-auto w-[34px] !min-w-0' variant='outline' onClick={() => imageInputRef.current?.click()}><LucideIcon.Image /></Button>
-                    <div className='flex items-center sm:space-x-3'>
+                    <div className='flex items-center space-x-3'>
                         <div className={`text-sm ${content.length >= MAX_CONTENT_LENGTH ? 'text-red-500' : content.length >= MAX_CONTENT_LENGTH * 0.9 ? 'text-yellow-600' : 'text-gray-500'}`}>
                             {content.length}/{MAX_CONTENT_LENGTH}
                         </div>

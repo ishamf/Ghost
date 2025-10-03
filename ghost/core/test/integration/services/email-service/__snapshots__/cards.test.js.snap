@@ -444,9 +444,18 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is a paragraph test.</span>
+        <!-- SPACING TO AVOID BODY TEXT BEING DUPLICATED IN PREVIEW TEXT -->
+        <div style=\\"display:none; max-height:0; overflow:hidden; mso-hide: all;\\" aria-hidden=\\"true\\" role=\\"presentation\\">
+            &#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;
+        </div>
 
         <!-- HEADER WITH FULL-WIDTH BACKGROUND -->
             <table role=\\"presentation\\" border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" class=\\"header\\" width=\\"100%\\" style=\\"mso-table-lspace: 0pt; mso-table-rspace: 0pt; line-height: 1.4; background-color: #ffffff; width: 100%; border-spacing: 0; border-collapse: collapse;\\" bgcolor=\\"#ffffff\\">
@@ -601,6 +610,10 @@ table.body h2 span {
 </html>
 ",
   "plaintext": "
+
+
+
+‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ 
 
 
 
@@ -1206,9 +1219,18 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is a paragraph</span>
+        <!-- SPACING TO AVOID BODY TEXT BEING DUPLICATED IN PREVIEW TEXT -->
+        <div style=\\"display:none; max-height:0; overflow:hidden; mso-hide: all;\\" aria-hidden=\\"true\\" role=\\"presentation\\">
+            &#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;&#x200C;&#xA0;
+        </div>
 
         <!-- HEADER WITH FULL-WIDTH BACKGROUND -->
             <table role=\\"presentation\\" border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" class=\\"header\\" width=\\"100%\\" style=\\"mso-table-lspace: 0pt; mso-table-rspace: 0pt; line-height: 1.4; background-color: #ffffff; width: 100%; border-spacing: 0; border-collapse: collapse;\\" bgcolor=\\"#ffffff\\">
@@ -1363,6 +1385,10 @@ table.body h2 span {
 </html>
 ",
   "plaintext": "
+
+
+
+‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ 
 
 
 
@@ -1968,6 +1994,11 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is just a simple paragraph, no frills.
@@ -2287,7 +2318,14 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
             
             <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; color: #FFFFFF; text-align: center; background-color: #000000;\\" align=\\"center\\" bgcolor=\\"#000000\\">
                 <tbody><tr>
-                    <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    
+                    <!--[if mso]>
+                        <td class=\\"kg-header-card-content\\" style=\\"padding: 40px;\\">
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                        <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    <!--<![endif]-->
+                    
                         <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;\\">
                             <tbody><tr>
                                 <td align=\\"center\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A;\\" valign=\\"top\\">
@@ -2303,6 +2341,7 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
                                 
                             </tr>
                         </tbody></table>
+                
                     </td>
                 </tr>
             </tbody></table>
@@ -2756,6 +2795,11 @@ Click here [http://127.0.0.1:2369/r/xxxxxx?m=member-uuid]
 
 
 
+
+
+
+
+
 Good news everyone!
 
 
@@ -2764,6 +2808,7 @@ Good news everyone!
 
 
 This header renders properly in all email clients!
+
 
 
 
@@ -3380,6 +3425,11 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is just a simple paragraph, no frills.
@@ -3713,7 +3763,14 @@ Beautiful, modern publishing with newsletters and premium subscriptions built-in
             
             <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; color: #FFFFFF; text-align: center; background-color: #000000;\\" align=\\"center\\" bgcolor=\\"#000000\\">
                 <tbody><tr>
-                    <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    
+                    <!--[if mso]>
+                        <td class=\\"kg-header-card-content\\" style=\\"padding: 40px;\\">
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                        <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    <!--<![endif]-->
+                    
                         <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;\\">
                             <tbody><tr>
                                 <td align=\\"center\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A;\\" valign=\\"top\\">
@@ -3729,6 +3786,7 @@ Beautiful, modern publishing with newsletters and premium subscriptions built-in
                                 
                             </tr>
                         </tbody></table>
+                
                     </td>
                 </tr>
             </tbody></table>
@@ -4188,6 +4246,11 @@ Click here [http://127.0.0.1:2369/r/xxxxxx?m=member-uuid]
 
 
 
+
+
+
+
+
 Good news everyone!
 
 
@@ -4196,6 +4259,7 @@ Good news everyone!
 
 
 This header renders properly in all email clients!
+
 
 
 
@@ -4812,6 +4876,11 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is just a simple paragraph, no frills.
@@ -5131,7 +5200,14 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
             
             <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; color: #FFFFFF; text-align: center; background-color: #000000;\\" align=\\"center\\" bgcolor=\\"#000000\\">
                 <tbody><tr>
-                    <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    
+                    <!--[if mso]>
+                        <td class=\\"kg-header-card-content\\" style=\\"padding: 40px;\\">
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                        <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    <!--<![endif]-->
+                    
                         <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;\\">
                             <tbody><tr>
                                 <td align=\\"center\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A;\\" valign=\\"top\\">
@@ -5147,6 +5223,7 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
                                 
                             </tr>
                         </tbody></table>
+                
                     </td>
                 </tr>
             </tbody></table>
@@ -5600,6 +5677,11 @@ Click here [http://127.0.0.1:2369/r/xxxxxx?m=member-uuid]
 
 
 
+
+
+
+
+
 Good news everyone!
 
 
@@ -5608,6 +5690,7 @@ Good news everyone!
 
 
 This header renders properly in all email clients!
+
 
 
 
@@ -6224,6 +6307,11 @@ table.body h2 span {
   }
 }
 </style>
+        <!--[if mso]>
+        <style type=\\"text/css\\">
+            ul, ol { margin-left: 1.5em !important; } 
+        </style>
+        <![endif]-->
     </head>
     <body style=\\"background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; font-size: 18px; line-height: 0; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #15212A;\\">
         <span class=\\"preheader\\" style=\\"color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;\\">This is just a simple paragraph, no frills.
@@ -6557,7 +6645,14 @@ Beautiful, modern publishing with newsletters and premium subscriptions built-in
             
             <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; color: #FFFFFF; text-align: center; background-color: #000000;\\" align=\\"center\\" bgcolor=\\"#000000\\">
                 <tbody><tr>
-                    <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    
+                    <!--[if mso]>
+                        <td class=\\"kg-header-card-content\\" style=\\"padding: 40px;\\">
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                        <td class=\\"kg-header-card-content\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A; padding: 40px;\\" valign=\\"top\\">
+                    <!--<![endif]-->
+                    
                         <table border=\\"0\\" cellpadding=\\"0\\" cellspacing=\\"0\\" width=\\"100%\\" style=\\"border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;\\">
                             <tbody><tr>
                                 <td align=\\"center\\" style=\\"font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; font-size: 18px; vertical-align: top; color: #15212A;\\" valign=\\"top\\">
@@ -6573,6 +6668,7 @@ Beautiful, modern publishing with newsletters and premium subscriptions built-in
                                 
                             </tr>
                         </tbody></table>
+                
                     </td>
                 </tr>
             </tbody></table>
@@ -7032,6 +7128,11 @@ Click here [http://127.0.0.1:2369/r/xxxxxx?m=member-uuid]
 
 
 
+
+
+
+
+
 Good news everyone!
 
 
@@ -7040,6 +7141,7 @@ Good news everyone!
 
 
 This header renders properly in all email clients!
+
 
 
 

@@ -4,20 +4,17 @@ import React, {useEffect, useState} from 'react';
 import {HostLimitError, useLimiter} from '../../../../hooks/useLimiter';
 import {List} from '@tryghost/admin-x-design-system';
 
-const features = [{
+type Feature = {
+    title: string;
+    description: string;
+    flag: string;
+    limitName?: string;
+};
+
+const features: Feature[] = [{
     title: 'Stripe Automatic Tax (private beta)',
     description: 'Use Stripe Automatic Tax at Stripe Checkout. Needs to be enabled in Stripe',
     flag: 'stripeAutomaticTax'
-}, {
-    title: 'Traffic Analytics (private beta)',
-    description: 'Enables traffic analytics',
-    flag: 'trafficAnalytics',
-    limitName: 'limitAnalytics' // the limit name as set in hostSettings.limits in config.json
-}, {
-    title: 'Traffic Analytics (alpha)',
-    description: 'Enables alpha stage analytics features',
-    flag: 'trafficAnalyticsAlpha',
-    limitName: 'limitAnalytics' // the limit name as set in hostSettings.limits in config.json
 }, {
     title: 'Email customization (internal beta)',
     description: 'Newsletter customization settings that have been released to Ghost\'s own production sites',
@@ -27,23 +24,35 @@ const features = [{
     description: 'Enables tier to be specified when importing members',
     flag: 'importMemberTier'
 }, {
-    title: 'UI 6.0 (internal alpha)',
-    description: 'General structural changes to the admin UI in 6.0',
-    flag: 'ui60'
-}, {
     title: 'Explore',
     description: 'Enables keeping in touch with the new Explore API',
     flag: 'explore'
+}, {
+    title: 'Members sign-in OTC (alpha)',
+    description: 'Enables one-time codes alongside magic links for members signin',
+    flag: 'membersSigninOTC'
+}, {
+    title: 'Tags X',
+    description: 'Enables the new Tags UI',
+    flag: 'tagsX'
+}, {
+    title: 'UTM tracking',
+    description: 'Enables UTM tracking for web traffic and member attribution',
+    flag: 'utmTracking'
+}, {
+    title: 'Email Unique ID',
+    description: 'Enables {uniqueid} variable in emails for unique image URLs to bypass ESP image caching',
+    flag: 'emailUniqueid'
 }];
 
 const AlphaFeatures: React.FC = () => {
     const limiter = useLimiter();
-    const [allowedFeatures, setAllowedFeatures] = useState<typeof features>([]);
+    const [allowedFeatures, setAllowedFeatures] = useState<Feature[]>([]);
 
     useEffect(() => {
         const filterFeatures = async () => {
             const filtered = [];
-            // Remove all features that are limited according to the subscribed plan
+            // Remove all features that are limited according to the subscribed plan (given these are beta, is optional to use)
             for (const feature of features) {
                 if (feature.limitName && limiter?.isLimited(feature.limitName)) {
                     try {

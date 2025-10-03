@@ -124,7 +124,7 @@ describe('Frontend Routing: Preview Routes', function () {
             .expect('Content-Type', /text\/plain/)
             .expect(302)
             .expect('Location', /ghost\/#\/editor\/post\/\w+/)
-            .expect('Cache-Control', testUtils.cacheRules.public)
+            .expect('Cache-Control', testUtils.cacheRules.noCache)
             .expect(assertCorrectFrontendHeaders);
     });
 
@@ -133,12 +133,20 @@ describe('Frontend Routing: Preview Routes', function () {
             .expect('Content-Type', /text\/plain/)
             .expect(302)
             .expect('Location', /ghost\/#\/editor\/page\/\w+/)
-            .expect('Cache-Control', testUtils.cacheRules.public)
+            .expect('Cache-Control', testUtils.cacheRules.noCache)
             .expect(assertCorrectFrontendHeaders);
     });
 
     it('should redirect published posts to their live url', async function () {
         await request.get('/p/2ac6b4f6-e1f3-406c-9247-c94a0496d39d/')
+            .expect(301)
+            .expect('Location', '/short-and-sweet/')
+            .expect('Cache-Control', testUtils.cacheRules.year)
+            .expect(assertCorrectFrontendHeaders);
+    });
+
+    it('should redirect published posts to their live url with ?member_status=paid', async function () {
+        await request.get('/p/2ac6b4f6-e1f3-406c-9247-c94a0496d39d/?member_status=paid')
             .expect(301)
             .expect('Location', '/short-and-sweet/')
             .expect('Cache-Control', testUtils.cacheRules.year)

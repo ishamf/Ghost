@@ -4,6 +4,7 @@ const sanitizeHtml = require('sanitize-html');
 const {BadRequestError, NoPermissionError, UnauthorizedError, DisabledFeatureError, NotFoundError} = require('@tryghost/errors');
 const errors = require('@tryghost/errors');
 const {isEmail} = require('@tryghost/validator');
+const normalizeEmail = require('../utils/normalize-email');
 
 const messages = {
     emailRequired: 'Email is required.',
@@ -24,8 +25,30 @@ const messages = {
     invalidType: 'Invalid checkout type.',
     notConfigured: 'This site is not accepting payments at the moment.',
     invalidNewsletters: 'Cannot subscribe to invalid newsletters {newsletters}',
-    archivedNewsletters: 'Cannot subscribe to archived newsletters {newsletters}'
+    archivedNewsletters: 'Cannot subscribe to archived newsletters {newsletters}',
+    otcNotSupported: 'OTC verification not supported.',
+    invalidCode: 'Invalid verification code.',
+    failedToVerifyCode: 'Failed to verify code, please try again.'
 };
+
+// helper utility for logic shared between sendMagicLink and verifyOTC
+function extractRefererOrRedirect(req) {
+    const {autoRedirect, redirect} = req.body;
+
+    if (autoRedirect === false) {
+        return null;
+    }
+
+    if (redirect) {
+        try {
+            return new URL(redirect).href;
+        } catch (e) {
+            logging.warn(e);
+        }
+    }
+
+    return req.get('referer') || null;
+}
 
 module.exports = class RouterController {
     /**
@@ -557,21 +580,10 @@ module.exports = class RouterController {
     }
 
     async sendMagicLink(req, res) {
-        const {email, honeypot, autoRedirect} = req.body;
-        let {emailType, redirect} = req.body;
+        const {email, honeypot} = req.body;
+        let {emailType} = req.body;
 
-        let referrer = req.get('referer');
-        if (autoRedirect === false){
-            referrer = null;
-        }
-        if (redirect) {
-            try {
-                // Validate URL
-                referrer = new URL(redirect).href;
-            } catch (e) {
-                logging.warn(e);
-            }
-        }
+        const referrer = extractRefererOrRedirect(req);
 
         if (!email) {
             throw new errors.BadRequestError({
@@ -580,6 +592,23 @@ module.exports = class RouterController {
         }
 
         if (!isEmail(email)) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.invalidEmail)
+            });
+        }
+
+        // Normalize email to prevent homograph attacks
+        let normalizedEmail;
+
+        try {
+            normalizedEmail = normalizeEmail(email);
+
+            if (normalizedEmail !== email) {
+                logging.info(`Email normalized from ${email} to ${normalizedEmail} for magic link`);
+            }
+        } catch (err) {
+            logging.error(`Failed to normalize [${email}]: ${err.message}`);
+
             throw new errors.BadRequestError({
                 message: tpl(messages.invalidEmail)
             });
@@ -606,9 +635,14 @@ module.exports = class RouterController {
 
         try {
             if (emailType === 'signup' || emailType === 'subscribe') {
-                await this._handleSignup(req, referrer);
+                await this._handleSignup(req, normalizedEmail, referrer);
             } else {
-                await this._handleSignin(req, referrer);
+                const signIn = await this._handleSignin(req, normalizedEmail, referrer);
+
+                if (this.labsService.isSet('membersSigninOTC') && signIn.otcRef) {
+                    res.writeHead(201, {'Content-Type': 'application/json'});
+                    return res.end(JSON.stringify({otc_ref: signIn.otcRef}));
+                }
             }
 
             res.writeHead(201);
@@ -626,7 +660,72 @@ module.exports = class RouterController {
         }
     }
 
-    async _handleSignup(req, referrer = null) {
+    async verifyOTC(req, res) {
+        const {otc, otcRef} = req.body;
+
+        if (!otc || !otcRef) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.badRequest),
+                context: 'otc and otcRef are required',
+                code: 'OTC_VERIFICATION_MISSING_PARAMS'
+            });
+        }
+
+        const tokenProvider = this._magicLinkService.tokenProvider;
+        if (!tokenProvider || typeof tokenProvider.verifyOTC !== 'function') {
+            throw new errors.BadRequestError({
+                message: tpl(messages.otcNotSupported),
+                code: 'OTC_NOT_SUPPORTED'
+            });
+        }
+
+        const isValidOTC = await tokenProvider.verifyOTC(otcRef, otc);
+        if (!isValidOTC) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.invalidCode),
+                code: 'INVALID_OTC'
+            });
+        }
+
+        const tokenValue = await tokenProvider.getTokenByRef(otcRef);
+        if (!tokenValue) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.invalidCode),
+                code: 'INVALID_OTC_REF'
+            });
+        }
+
+        const otcVerificationHash = await this._createHashFromOTCAndToken(otc, tokenValue);
+        if (!otcVerificationHash) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.failedToVerifyCode),
+                code: 'OTC_VERIFICATION_FAILED'
+            });
+        }
+
+        const referrer = extractRefererOrRedirect(req);
+
+        const redirectUrl = this._magicLinkService.getSigninURL(tokenValue, 'signin', referrer, otcVerificationHash);
+        if (!redirectUrl) {
+            throw new errors.BadRequestError({
+                message: tpl(messages.failedToVerifyCode),
+                code: 'OTC_VERIFICATION_FAILED'
+            });
+        }
+
+        return res.json({redirectUrl});
+    }
+
+    async _createHashFromOTCAndToken(otc, token) {
+        // timestamp for anti-replay protection (5 minute window)
+        const timestamp = Math.floor(Date.now() / 1000);
+
+        const hash = this._magicLinkService.tokenProvider.createOTCVerificationHash(otc, token, timestamp);
+
+        return `${timestamp}:${hash}`;
+    }
+
+    async _handleSignup(req, normalizedEmail, referrer = null) {
         if (!this._allowSelfSignup()) {
             if (this._settingsCache.get('members_signup_access') === 'paid') {
                 throw new errors.BadRequestError({
@@ -640,14 +739,14 @@ module.exports = class RouterController {
         }
 
         const blockedEmailDomains = this._settingsCache.get('all_blocked_email_domains');
-        const emailDomain = req.body.email.split('@')[1]?.toLowerCase();
+        const emailDomain = normalizedEmail.split('@')[1]?.toLowerCase();
         if (emailDomain && blockedEmailDomains.includes(emailDomain)) {
             throw new errors.BadRequestError({
                 message: tpl(messages.blockedEmailDomain)
             });
         }
 
-        const {email, emailType} = req.body;
+        const {emailType} = req.body;
 
         const tokenData = {
             labels: req.body.labels,
@@ -657,13 +756,19 @@ module.exports = class RouterController {
             attribution: await this._memberAttributionService.getAttribution(req.body.urlHistory)
         };
 
-        return await this._sendEmailWithMagicLink({email, tokenData, requestedType: emailType, referrer});
+        return await this._sendEmailWithMagicLink({email: normalizedEmail, tokenData, requestedType: emailType, referrer});
     }
 
-    async _handleSignin(req, referrer = null) {
-        const {email, emailType} = req.body;
+    async _handleSignin(req, normalizedEmail, referrer = null) {
+        const {emailType, includeOTC: reqIncludeOTC} = req.body;
 
-        const member = await this._memberRepository.get({email});
+        let includeOTC = false;
+
+        if (this.labsService.isSet('membersSigninOTC') && (reqIncludeOTC === true || reqIncludeOTC === 'true')) {
+            includeOTC = true;
+        }
+
+        const member = await this._memberRepository.get({email: normalizedEmail});
 
         if (!member) {
             throw new errors.BadRequestError({
@@ -672,7 +777,7 @@ module.exports = class RouterController {
         }
 
         const tokenData = {};
-        return await this._sendEmailWithMagicLink({email, tokenData, requestedType: emailType, referrer});
+        return await this._sendEmailWithMagicLink({email: normalizedEmail, tokenData, requestedType: emailType, referrer, includeOTC});
     }
 
     /**
