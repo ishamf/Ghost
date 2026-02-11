@@ -1,5 +1,6 @@
+const assert = require('node:assert/strict');
 require('should');
-const configUtils = require('../../../utils/configUtils');
+const configUtils = require('../../../utils/config-utils');
 
 describe('vhost utils', function () {
     beforeEach(function () {
@@ -26,16 +27,16 @@ describe('vhost utils', function () {
         });
 
         it('should use admin url and inverse as args', function () {
-            configUtils.config.getBackendMountPath().should.eql('admin.ghost.blog');
+            assert.equal(configUtils.config.getBackendMountPath(), 'admin.ghost.blog');
             configUtils.config.getFrontendMountPath().should.eql(/^(?!admin\.ghost\.blog).*/);
         });
 
         it('should have regex that excludes admin traffic on front-end', function () {
             const frontendRegex = configUtils.config.getFrontendMountPath();
 
-            frontendRegex.test('localhost').should.be.true();
-            frontendRegex.test('ghost.blog').should.be.true();
-            frontendRegex.test('admin.ghost.blog').should.be.false();
+            assert.equal(frontendRegex.test('localhost'), true);
+            assert.equal(frontendRegex.test('ghost.blog'), true);
+            assert.equal(frontendRegex.test('admin.ghost.blog'), false);
         });
     });
 
@@ -49,20 +50,6 @@ describe('vhost utils', function () {
         it('should mount and assign correct routes', function () {
             configUtils.config.getBackendMountPath().should.eql(/.*/);
             configUtils.config.getFrontendMountPath().should.eql(/.*/);
-        });
-    });
-
-    describe('getStaticUrlPrefix', function () {
-        it('should return the correct static url prefix', function () {
-            configUtils.config.getStaticUrlPrefix('images').should.eql('content/images');
-            configUtils.config.getStaticUrlPrefix('media').should.eql('content/media');
-            configUtils.config.getStaticUrlPrefix('files').should.eql('content/files');
-        });
-
-        it('should throw an error if the type is not valid', function () {
-            (function () {
-                configUtils.config.getStaticUrlPrefix('invalid');
-            }).should.throw('getStaticUrlPrefix was called with: invalid');
         });
     });
 });

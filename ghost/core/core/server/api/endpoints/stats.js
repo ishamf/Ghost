@@ -70,31 +70,6 @@ const controller = {
             return await statsService.api.getSubscriptionCountHistory();
         }
     },
-    postReferrers: {
-        headers: {
-            cacheInvalidate: false
-        },
-        data: [
-            'id'
-        ],
-        permissions: {
-            docName: 'posts',
-            method: 'browse'
-        },
-        cache: statsService.cache,
-        generateCacheKeyData(frame) {
-            return {
-                method: 'postReferrers',
-                data: {
-                    id: frame.data.id
-                }
-
-            };
-        },
-        async query(frame) {
-            return await statsService.api.getPostReferrers(frame.data.id);
-        }
-    },
     referrersHistory: {
         headers: {
             cacheInvalidate: false
@@ -125,8 +100,17 @@ const controller = {
             'date_to',
             'timezone',
             'member_status',
-            'tb_version',
-            'post_type'
+            'post_type',
+            'post_uuid',
+            'pathname',
+            'device',
+            'location',
+            'source',
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'utm_content',
+            'utm_term'
         ],
         permissions: {
             docName: 'posts',
@@ -331,7 +315,7 @@ const controller = {
             return await statsService.api.getNewsletterSubscriberStats(frame.options);
         }
     },
-    postReferrersAlpha: {
+    postReferrers: {
         headers: {
             cacheInvalidate: false
         },
@@ -360,7 +344,7 @@ const controller = {
         cache: statsService.cache,
         generateCacheKeyData(frame) {
             return {
-                method: 'getReferrersForPost',
+                method: 'postReferrers',
                 data: {
                     id: frame.data.id
                 }
@@ -514,7 +498,7 @@ const controller = {
         },
         options: [
             'order',
-            'limit', 
+            'limit',
             'date_from',
             'date_to',
             'timezone',

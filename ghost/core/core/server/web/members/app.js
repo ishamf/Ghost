@@ -63,6 +63,11 @@ module.exports = function setupMembersApp() {
     membersApp.put('/api/member', bodyParser.json({limit: '50mb'}), middleware.updateMemberData);
     membersApp.post('/api/member/email', bodyParser.json({limit: '50mb'}), (req, res, next) => membersService.api.middleware.updateEmailAddress(req, res, next));
 
+    // Member offers (retention etc.)
+    membersApp.post('/api/member/offers', bodyParser.json(), function lazyGetMemberOffersMw(req, res, next) {
+        return membersService.api.middleware.getMemberOffers(req, res, next);
+    });
+
     // Remove email from suppression list
     membersApp.delete('/api/member/suppression', middleware.deleteSuppression);
 
@@ -89,6 +94,8 @@ module.exports = function setupMembersApp() {
         '/api/verify-otc',
         bodyParser.json(),
         middleware.verifyIntegrityToken,
+        shared.middleware.brute.otcVerificationEnumeration,
+        shared.middleware.brute.otcVerification,
         // NOTE: this is wrapped in a function to ensure we always go via the getter
         function lazyVerifyOTCMw(req, res, next) {
             return membersService.api.middleware.verifyOTC(req, res, next);
@@ -100,8 +107,14 @@ module.exports = function setupMembersApp() {
     membersApp.post('/api/create-stripe-update-session', function lazyCreateCheckoutSetupSessionMw(req, res, next) {
         return membersService.api.middleware.createCheckoutSetupSession(req, res, next);
     });
+    membersApp.post('/api/create-stripe-billing-portal-session', function lazyCreateBillingPortalSessionMw(req, res, next) {
+        return membersService.api.middleware.createBillingPortalSession(req, res, next);
+    });
     membersApp.put('/api/subscriptions/:id', function lazyUpdateSubscriptionMw(req, res, next) {
         return membersService.api.middleware.updateSubscription(req, res, next);
+    });
+    membersApp.post('/api/subscriptions/:id/apply-offer', function lazyApplyOfferMw(req, res, next) {
+        return membersService.api.middleware.applyOfferToSubscription(req, res, next);
     });
 
     // Comments

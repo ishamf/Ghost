@@ -20,9 +20,8 @@ Router.map(function () {
     this.route('signup', {path: '/signup/:token'});
     this.route('reset', {path: '/reset/:token'});
 
-    this.route('whatsnew');
     this.route('site');
-    this.route('dashboard');
+    this.route('dashboard'); // redirects to stats-x
     this.route('launch');
 
     this.route('stats-x', {path: '/analytics'}, function () {

@@ -1,5 +1,5 @@
 import {Meta, createMutation, createQuery, createQueryWithId} from '../utils/api/hooks';
-import {updateQueryCache, insertToQueryCache} from '../utils/api/updateQueries';
+import {updateQueryCache, insertToQueryCache} from '../utils/api/update-queries';
 
 export type Offer = {
     id: string;
@@ -16,6 +16,7 @@ export type Offer = {
     currency: string | null;
     status: string;
     redemption_count: number;
+    redemption_type: 'signup' | 'retention';
     tier: {
         id: string;
         name?: string;

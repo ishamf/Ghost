@@ -249,6 +249,9 @@ Object {
   "encoding": "base64",
   "from": "\\"a test blog\\" <noreply@127.0.0.1>",
   "generateTextFromHTML": true,
+  "headers": Object {
+    "Sender": "\\"a test blog\\" <noreply@127.0.0.1>",
+  },
   "replyTo": null,
   "subject": "Your New Ghost Site",
   "to": "test@example.com",
@@ -535,6 +538,9 @@ Object {
   "encoding": "base64",
   "from": "\\"a test blog\\" <noreply@127.0.0.1>",
   "generateTextFromHTML": true,
+  "headers": Object {
+    "Sender": "\\"a test blog\\" <noreply@127.0.0.1>",
+  },
   "replyTo": null,
   "subject": "Your New Ghost Site",
   "to": "test@example.com",
@@ -775,6 +781,7 @@ exports[`Authentication API Password reset reset password 1: [body] 1`] = `
 Object {
   "password_reset": Array [
     Object {
+      "emailVerificationToken": StringMatching /\\^\\[0-9\\]\\{6\\}\\$/,
       "message": "Password updated",
     },
   ],
@@ -785,7 +792,7 @@ exports[`Authentication API Password reset reset password 2: [headers] 1`] = `
 Object {
   "access-control-allow-origin": "http://127.0.0.1:2369",
   "cache-control": "no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0",
-  "content-length": "51",
+  "content-length": "85",
   "content-type": "application/json; charset=utf-8",
   "content-version": StringMatching /v\\\\d\\+\\\\\\.\\\\d\\+/,
   "etag": StringMatching /\\(\\?:W\\\\/\\)\\?"\\(\\?:\\[ !#-\\\\x7E\\\\x80-\\\\xFF\\]\\*\\|\\\\r\\\\n\\[\\\\t \\]\\|\\\\\\\\\\.\\)\\*"/,
