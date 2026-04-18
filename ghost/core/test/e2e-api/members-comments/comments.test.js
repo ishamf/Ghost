@@ -1,7 +1,6 @@
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 const {agentProvider, mockManager, fixtureManager, matchers, configUtils, dbUtils} = require('../../utils/e2e-framework');
 const {nullable, anyEtag, anyObjectId, anyLocationFor, anyISODateTime, anyErrorId, anyUuid, anyNumber, anyBoolean, stringMatching} = matchers;
-const should = require('should');
 const models = require('../../../core/server/models');
 const moment = require('moment-timezone');
 const settingsCache = require('../../../core/shared/settings-cache');
@@ -260,10 +259,10 @@ async function testCanCommentOnPost(member) {
 
     // Check last_updated_at changed?
     member = await models.Member.findOne({id: member.id});
-    should.notEqual(member.get('last_seen_at'), null, 'The member should have a `last_seen_at` property after posting a comment.');
+    assert.notEqual(member.get('last_seen_at'), null, 'The member should have a `last_seen_at` property after posting a comment.');
 
     // Check last_commented_at changed?
-    should.notEqual(member.get('last_commented_at'), null, 'The member should have a `last_commented_at` property after posting a comment.');
+    assert.notEqual(member.get('last_commented_at'), null, 'The member should have a `last_commented_at` property after posting a comment.');
 }
 
 async function testCanReply(member, emailMatchers = {}) {
@@ -294,10 +293,10 @@ async function testCanReply(member, emailMatchers = {}) {
 
     // Check last_updated_at changed?
     member = await models.Member.findOne({id: member.id});
-    should.notEqual(member.get('last_seen_at').getTime(), date.getTime(), 'Should update `last_seen_at` property after posting a comment.');
+    assert.notEqual(member.get('last_seen_at').getTime(), date.getTime(), 'Should update `last_seen_at` property after posting a comment.');
 
     // Check last_commented_at changed?
-    should.notEqual(member.get('last_commented_at').getTime(), date.getTime(), 'Should update `last_commented_at` property after posting a comment.');
+    assert.notEqual(member.get('last_commented_at').getTime(), date.getTime(), 'Should update `last_commented_at` property after posting a comment.');
 }
 
 async function testCannotCommentOnPost(status = 403) {
@@ -435,7 +434,7 @@ describe('Comments API', function () {
 
                 // go through all comments and check if the deleted comment is not there
                 data2.body.comments.forEach((comment) => {
-                    should(comment.html).not.eql('This is a deleted comment');
+                    assert.notEqual(comment.html, 'This is a deleted comment');
                 });
 
                 assert.equal(data2.body.comments.length, 0);
@@ -477,8 +476,8 @@ describe('Comments API', function () {
 
                 // check if hidden and deleted comments have their html removed
                 data2.body.comments.forEach((comment) => {
-                    should.notEqual(comment.html, 'This is a hidden comment');
-                    should.notEqual(comment.html, 'This is a deleted comment');
+                    assert.notEqual(comment.html, 'This is a hidden comment');
+                    assert.notEqual(comment.html, 'This is a deleted comment');
                 });
 
                 // check if hiddenComment.id and deletedComment.id are in the response
@@ -845,7 +844,7 @@ describe('Comments API', function () {
                 // get the LAST comment from data2
                 let lastComment = data2.body.comments[data2.body.comments.length - 1];
 
-                should(lastComment.id).eql(oldestComment.id);
+                assert.equal(lastComment.id, oldestComment.id);
             });
 
             it('Can reply to your own comment', async function () {
@@ -883,7 +882,7 @@ describe('Comments API', function () {
                 await testCanReply(loggedInMember);
             });
 
-            it('Limits returned replies to 3', async function () {
+            it('Returns all replies when reading a single comment', async function () {
                 const {parent} = await dbFns.addCommentWithReplies({
                     member_id: fixtureManager.get('members', 0).id,
                     replies: new Array(5).fill({
@@ -894,11 +893,43 @@ describe('Comments API', function () {
                 // All 5 are direct replies (in_reply_to_id IS NULL)
                 // count.replies = 5 (all descendants)
                 // count.direct_replies = 5 (all are direct)
-                await testGetComments(`/api/comments/${parent.get('id')}/`, [commentMatcherWithReplies({replies: 3})])
+                await testGetComments(`/api/comments/${parent.get('id')}/`, [commentMatcherWithReplies({replies: 5})])
                     .expect(({body}) => {
                         assert.equal(body.comments[0].count.replies, 5);
                         assert.equal(body.comments[0].count.direct_replies, 5);
                     });
+            });
+
+            it('Returns all replies for every parent when browsing multiple comments', async function () {
+                // Create two parent comments, each with 5 replies
+                const {parent: parentA} = await dbFns.addCommentWithReplies({
+                    member_id: fixtureManager.get('members', 0).id,
+                    replies: new Array(5).fill({
+                        member_id: fixtureManager.get('members', 1).id
+                    })
+                });
+
+                const {parent: parentB} = await dbFns.addCommentWithReplies({
+                    member_id: fixtureManager.get('members', 0).id,
+                    replies: new Array(5).fill({
+                        member_id: fixtureManager.get('members', 1).id
+                    })
+                });
+
+                const res = await membersAgent
+                    .get(`/api/comments/post/${postId}/`)
+                    .expectStatus(200);
+
+                const commentA = res.body.comments.find(c => c.id === parentA.get('id'));
+                const commentB = res.body.comments.find(c => c.id === parentB.get('id'));
+
+                // Both parents should have all 5 replies loaded
+                assert.equal(commentA.replies.length, 5, `Parent A should have 5 replies, got ${commentA.replies.length}`);
+                assert.equal(commentB.replies.length, 5, `Parent B should have 5 replies, got ${commentB.replies.length}`);
+
+                // Counts should reflect the true totals
+                assert.equal(commentA.count.replies, 5);
+                assert.equal(commentB.count.replies, 5);
             });
 
             it('hidden replies are not included in the count', async function () {
@@ -1107,7 +1138,7 @@ describe('Comments API', function () {
                         assert.equal(body.meta.pagination.next, null);
 
                         // Check liked + likes working for replies too
-                        should(body.comments[2].id).eql(replies[2].get('id'));
+                        assert.equal(body.comments[2].id, replies[2].get('id'));
                         assert.equal(body.comments[2].count.likes, 1);
                         assert.equal(body.comments[2].liked, true);
                     });
@@ -1170,7 +1201,7 @@ describe('Comments API', function () {
                 assert.equal(reports.models.length, 1);
 
                 const report = reports.models[0];
-                report.get('member_id').should.eql(loggedInMember.id);
+                assert.equal(report.get('member_id'), loggedInMember.id);
 
                 mockManager.assert.sentEmail({
                     subject: '🚩 A comment has been reported on your post',
@@ -1196,7 +1227,7 @@ describe('Comments API', function () {
                 assert.equal(reports.models.length, 1);
 
                 const report = reports.models[0];
-                report.get('member_id').should.eql(loggedInMember.id);
+                assert.equal(report.get('member_id'), loggedInMember.id);
 
                 emailMockReceiver.assertSentEmailCount(0);
             });
@@ -1481,7 +1512,7 @@ describe('Comments API', function () {
                     });
 
                     // in_reply_to is set
-                    newComment.in_reply_to_id.should.eql(reply.get('id'));
+                    assert.equal(newComment.in_reply_to_id, reply.get('id'));
                     assert.equal(newComment.in_reply_to_snippet, 'This is a reply');
 
                     // replied-to comment author is notified

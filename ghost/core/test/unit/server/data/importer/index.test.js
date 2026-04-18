@@ -1,7 +1,6 @@
 const assert = require('node:assert/strict');
 const {assertExists} = require('../../../../utils/assertions');
 const errors = require('@tryghost/errors');
-const should = require('should');
 const sinon = require('sinon');
 const rewire = require('rewire');
 const _ = require('lodash');
@@ -43,7 +42,7 @@ describe('Importer', function () {
 
         it('gets the correct extensions', function () {
             assert(Array.isArray(ImportManager.getExtensions()));
-            assert.equal(ImportManager.getExtensions().length, 32);
+            assert.equal(ImportManager.getExtensions().length, 55);
             assert(ImportManager.getExtensions().includes('.csv'));
             assert(ImportManager.getExtensions().includes('.json'));
             assert(ImportManager.getExtensions().includes('.zip'));
@@ -58,23 +57,20 @@ describe('Importer', function () {
             assert(ImportManager.getExtensions().includes('.m4a'));
 
             assert(ImportManager.getExtensions().includes('.pdf'));
-            assert(ImportManager.getExtensions().includes('.json'));
-            assert(ImportManager.getExtensions().includes('.jsonld'));
-            assert(ImportManager.getExtensions().includes('.odp'));
-            assert(ImportManager.getExtensions().includes('.ods'));
-            assert(ImportManager.getExtensions().includes('.odt'));
-            assert(ImportManager.getExtensions().includes('.ppt'));
             assert(ImportManager.getExtensions().includes('.pptx'));
-            assert(ImportManager.getExtensions().includes('.rtf'));
             assert(ImportManager.getExtensions().includes('.txt'));
-            assert(ImportManager.getExtensions().includes('.xls'));
             assert(ImportManager.getExtensions().includes('.xlsx'));
             assert(ImportManager.getExtensions().includes('.xml'));
+            assert(ImportManager.getExtensions().includes('.docx'));
+            assert(ImportManager.getExtensions().includes('.html'));
+            assert(ImportManager.getExtensions().includes('.epub'));
+            assert(ImportManager.getExtensions().includes('.js'));
+            assert(ImportManager.getExtensions().includes('.css'));
         });
 
         it('gets the correct types', function () {
             assert(Array.isArray(ImportManager.getContentTypes()));
-            assert.equal(ImportManager.getContentTypes().length, 35);
+            assert.equal(ImportManager.getContentTypes().length, 23);
             assert(ImportManager.getContentTypes().includes('image/jpeg'));
             assert(ImportManager.getContentTypes().includes('image/png'));
             assert(ImportManager.getContentTypes().includes('image/gif'));
@@ -95,26 +91,9 @@ describe('Importer', function () {
             assert(ImportManager.getContentTypes().includes('audio/ogg'));
             assert(ImportManager.getContentTypes().includes('audio/x-m4a'));
 
-            assert(ImportManager.getContentTypes().includes('application/pdf'));
-            assert(ImportManager.getContentTypes().includes('application/json'));
-            assert(ImportManager.getContentTypes().includes('application/ld+json'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.oasis.opendocument.presentation'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.oasis.opendocument.spreadsheet'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.oasis.opendocument.text'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.ms-powerpoint'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.openxmlformats-officedocument.presentationml.presentation'));
-            assert(ImportManager.getContentTypes().includes('application/rtf'));
-            assert(ImportManager.getContentTypes().includes('text/plain'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.ms-excel'));
-            assert(ImportManager.getContentTypes().includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
-            assert(ImportManager.getContentTypes().includes('application/xml'));
-            assert(ImportManager.getContentTypes().includes('application/atom+xml'));
-
             assert(ImportManager.getContentTypes().includes('application/octet-stream'));
             assert(ImportManager.getContentTypes().includes('application/json'));
-
             assert(ImportManager.getContentTypes().includes('text/plain'));
-
             assert(ImportManager.getContentTypes().includes('application/zip'));
             assert(ImportManager.getContentTypes().includes('application/x-zip-compressed'));
         });
@@ -129,17 +108,18 @@ describe('Importer', function () {
         });
 
         it('globs extensions correctly', function () {
-            assert.equal(ImportManager.getGlobPattern(ImportManager.getExtensions()), '+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.odp|.ods|.odt|.ppt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.csv|.md|.markdown|.zip)');
+            const extGlob = '+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.ods|.odt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.apkg|.css|.csv|.doc|.docx|.epub|.gpx|.html|.ics|.ipynb|.js|.key|.kml|.md|.mobi|.mov|.otf|.pages|.paprikarecipes|.psd|.py|.skp|.woff|.woff2|.xlsb|.xlsm|.yaml|.zip|.markdown)';
+            assert.equal(ImportManager.getGlobPattern(ImportManager.getExtensions()), extGlob);
             assert.equal(ImportManager.getGlobPattern(ImportManager.getDirectories()), '+(images|content|media|files)');
             assert.equal(ImportManager.getGlobPattern(JSONHandler.extensions), '+(.json)');
             assert.equal(ImportManager.getGlobPattern(ImageHandler.extensions), '+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp)');
-            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions()), '*+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.odp|.ods|.odt|.ppt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.csv|.md|.markdown|.zip)');
+            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions()), '*' + extGlob);
             assert.equal(ImportManager.getDirectoryGlob(ImportManager.getDirectories()), '+(images|content|media|files)');
-            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 0), '*+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.odp|.ods|.odt|.ppt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.csv|.md|.markdown|.zip)');
+            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 0), '*' + extGlob);
             assert.equal(ImportManager.getDirectoryGlob(ImportManager.getDirectories(), 0), '+(images|content|media|files)');
-            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 1), '{*/*,*}+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.odp|.ods|.odt|.ppt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.csv|.md|.markdown|.zip)');
+            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 1), '{*/*,*}' + extGlob);
             assert.equal(ImportManager.getDirectoryGlob(ImportManager.getDirectories(), 1), '{*/,}+(images|content|media|files)');
-            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 2), '**/*+(.jpg|.jpeg|.gif|.png|.svg|.svgz|.ico|.webp|.mp4|.webm|.ogv|.mp3|.wav|.ogg|.m4a|.pdf|.json|.jsonld|.odp|.ods|.odt|.ppt|.pptx|.rtf|.txt|.xls|.xlsx|.xml|.csv|.md|.markdown|.zip)');
+            assert.equal(ImportManager.getExtensionGlob(ImportManager.getExtensions(), 2), '**/*' + extGlob);
             assert.equal(ImportManager.getDirectoryGlob(ImportManager.getDirectories(), 2), '**/+(images|content|media|files)');
         });
 
@@ -149,7 +129,7 @@ describe('Importer', function () {
             const removeStub = sinon.stub(fs, 'remove').withArgs(file).returns(Promise.resolve());
 
             await ImportManager.cleanUp();
-            assert.equal(removeStub.calledOnce, true);
+            sinon.assert.calledOnce(removeStub);
             assert.equal(ImportManager.fileToDelete, null);
         });
 
@@ -158,7 +138,7 @@ describe('Importer', function () {
             const removeStub = sinon.stub(fs, 'remove').returns(Promise.resolve());
 
             await ImportManager.cleanUp();
-            assert.equal(removeStub.called, false);
+            sinon.assert.notCalled(removeStub);
         });
 
         it('silently ignores clean up errors', async function () {
@@ -168,8 +148,8 @@ describe('Importer', function () {
             const removeStub = sinon.stub(fs, 'remove').withArgs(file).returns(Promise.reject(new Error('Unknown file')));
 
             await ImportManager.cleanUp();
-            assert.equal(removeStub.calledOnce, true);
-            assert.equal(loggingStub.calledOnce, true);
+            sinon.assert.calledOnce(removeStub);
+            sinon.assert.calledOnce(loggingStub);
             assert.equal(ImportManager.fileToDelete, null);
         });
 
@@ -181,8 +161,8 @@ describe('Importer', function () {
                 const fileSpy = sinon.stub(ImportManager, 'processFile').returns(Promise.resolve({}));
 
                 ImportManager.loadFile(testFile).then(function () {
-                    assert.equal(zipSpy.calledOnce, false);
-                    assert.equal(fileSpy.calledOnce, true);
+                    sinon.assert.notCalled(zipSpy);
+                    sinon.assert.calledOnce(fileSpy);
                     done();
                 }).catch(done);
             });
@@ -194,8 +174,8 @@ describe('Importer', function () {
                 const fileSpy = sinon.stub(ImportManager, 'processFile').resolves({});
 
                 ImportManager.loadFile(testZip).then(function () {
-                    assert.equal(zipSpy.calledOnce, true);
-                    assert.equal(fileSpy.calledOnce, false);
+                    sinon.assert.calledOnce(zipSpy);
+                    sinon.assert.notCalled(fileSpy);
                     done();
                 }).catch(done);
             });
@@ -220,22 +200,22 @@ describe('Importer', function () {
                 getFileSpy.withArgs(RevueHandler, sinon.match.string).returns([{path: '/tmp/dir/myFile.json', name: 'myFile.json'}]);
 
                 ImportManager.processZip(testZip).then(function (zipResult) {
-                    assert.equal(extractSpy.calledOnce, true);
-                    assert.equal(validSpy.calledOnce, true);
-                    assert.equal(baseDirSpy.calledOnce, true);
-                    assert.equal(getFileSpy.callCount, 6);
-                    assert.equal(jsonSpy.calledOnce, true);
-                    assert.equal(imageSpy.called, false);
-                    assert.equal(mdSpy.called, false);
-                    assert.equal(revueSpy.called, true);
+                    sinon.assert.calledOnce(extractSpy);
+                    sinon.assert.calledOnce(validSpy);
+                    sinon.assert.calledOnce(baseDirSpy);
+                    sinon.assert.callCount(getFileSpy, 6);
+                    sinon.assert.calledOnce(jsonSpy);
+                    sinon.assert.notCalled(imageSpy);
+                    sinon.assert.notCalled(mdSpy);
+                    sinon.assert.called(revueSpy);
 
                     ImportManager.processFile(testFile, '.json').then(function (fileResult) {
-                        assert.equal(jsonSpy.calledTwice, true);
+                        sinon.assert.calledTwice(jsonSpy);
 
                         // They should both have data keys, and they should be equivalent
                         assert('data' in zipResult);
                         assert('data' in fileResult);
-                        zipResult.should.eql(fileResult);
+                        assert.deepEqual(zipResult, fileResult);
                         done();
                     });
                 }).catch(done);
@@ -320,7 +300,7 @@ describe('Importer', function () {
                     const zipResult = await ImportManager.processZip(testZip);
                     assertExists(zipResult.data);
                     assert.equal(zipResult.images, undefined);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
 
                 it('accepts a zip without a base directory', async function () {
@@ -330,7 +310,7 @@ describe('Importer', function () {
                     const zipResult = await ImportManager.processZip(testZip);
                     assertExists(zipResult.data);
                     assert.equal(zipResult.images, undefined);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
 
                 it('accepts a zip with an image directory', async function () {
@@ -340,7 +320,7 @@ describe('Importer', function () {
                     const zipResult = await ImportManager.processZip(testZip);
                     assert.equal(zipResult.images.length, 1);
                     assert.equal(zipResult.data, undefined);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
 
                 it('accepts a zip with uppercase image extensions', async function () {
@@ -350,7 +330,7 @@ describe('Importer', function () {
                     const zipResult = await ImportManager.processZip(testZip);
                     assert.equal(zipResult.images.length, 1);
                     assert.equal(zipResult.data, undefined);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
 
                 it('throws zipContainsMultipleDataFormats', async function () {
@@ -358,7 +338,7 @@ describe('Importer', function () {
                     const extractSpy = sinon.stub(ImportManager, 'extractZip').returns(Promise.resolve(testDir));
 
                     await assert.rejects(ImportManager.processZip(testZip), /multiple data formats/);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
 
                 it('throws noContentToImport', async function () {
@@ -366,7 +346,7 @@ describe('Importer', function () {
                     const extractSpy = sinon.stub(ImportManager, 'extractZip').returns(Promise.resolve(testDir));
 
                     await assert.rejects(ImportManager.processZip(testZip), /not include any content/);
-                    assert.equal(extractSpy.calledOnce, true);
+                    sinon.assert.calledOnce(extractSpy);
                 });
             });
 
@@ -398,7 +378,7 @@ describe('Importer', function () {
                 it('throws invalidZipFileBaseDirectory', function () {
                     const testDir = path.resolve('test/utils/fixtures/import/zips/zip-empty');
 
-                    should(() => ImportManager.getBaseDirectory(testDir)).throwError(/invalid zip file/i);
+                    assert.throws(() => ImportManager.getBaseDirectory(testDir), /invalid zip file/i);
                 });
             });
 
@@ -437,15 +417,15 @@ describe('Importer', function () {
                 const revueSpy = sinon.spy(RevueImporter, 'preProcess');
 
                 ImportManager.preProcess(inputCopy).then(function (output) {
-                    assert.equal(revueSpy.calledOnce, true);
-                    assert.equal(revueSpy.calledWith(inputCopy), true);
-                    assert.equal(dataSpy.calledOnce, true);
-                    assert.equal(dataSpy.calledWith(inputCopy), true);
-                    assert.equal(imageSpy.calledOnce, true);
-                    assert.equal(imageSpy.calledWith(inputCopy), true);
+                    sinon.assert.calledOnce(revueSpy);
+                    sinon.assert.calledWith(revueSpy, inputCopy);
+                    sinon.assert.calledOnce(dataSpy);
+                    sinon.assert.calledWith(dataSpy, inputCopy);
+                    sinon.assert.calledOnce(imageSpy);
+                    sinon.assert.calledWith(imageSpy, inputCopy);
                     // eql checks for equality
                     // equal checks the references are for the same object
-                    output.should.not.equal(input);
+                    assert.notEqual(output, input);
                     assert.equal(output.preProcessedByData, true);
                     assert.equal(output.preProcessedByImage, true);
                     assert.equal(output.preProcessedByMedia, true);
@@ -481,10 +461,10 @@ describe('Importer', function () {
                 ImportManager.doImport(inputCopy).then(function (output) {
                     // eql checks for equality
                     // equal checks the references are for the same object
-                    assert.equal(dataSpy.calledOnce, true);
-                    assert.equal(imageSpy.calledOnce, true);
-                    dataSpy.getCall(0).args[0].should.eql(expectedData);
-                    imageSpy.getCall(0).args[0].should.eql(expectedImages);
+                    sinon.assert.calledOnce(dataSpy);
+                    sinon.assert.calledOnce(imageSpy);
+                    assert.deepEqual(dataSpy.getCall(0).args[0], expectedData);
+                    assert.deepEqual(imageSpy.getCall(0).args[0], expectedImages);
 
                     // we stubbed this as a noop but ImportManager calls with sequence, so we should get an array
                     assert.deepEqual(output, {images: expectedImages, data: expectedData});
@@ -515,11 +495,11 @@ describe('Importer', function () {
                 const cleanupSpy = sinon.stub(ImportManager, 'cleanUp').returns(Promise.resolve());
 
                 ImportManager.importFromFile({name: 'test.json', path: '/test.json'}).then(function () {
-                    assert.equal(loadFileSpy.calledOnce, true);
-                    assert.equal(preProcessSpy.calledOnce, true);
-                    assert.equal(doImportSpy.calledOnce, true);
-                    assert.equal(generateReportSpy.calledOnce, true);
-                    assert.equal(cleanupSpy.calledOnce, true);
+                    sinon.assert.calledOnce(loadFileSpy);
+                    sinon.assert.calledOnce(preProcessSpy);
+                    sinon.assert.calledOnce(doImportSpy);
+                    sinon.assert.calledOnce(generateReportSpy);
+                    sinon.assert.calledOnce(cleanupSpy);
                     sinon.assert.callOrder(loadFileSpy, preProcessSpy, doImportSpy, generateReportSpy, cleanupSpy);
 
                     done();
@@ -671,7 +651,7 @@ describe('Importer', function () {
             }];
 
             MarkdownHandler.loadFile(file).then(function (result) {
-                result.data.posts.should.be.empty();
+                assert.equal(result.data.posts.length, 0);
 
                 done();
             }).catch(done);
@@ -732,9 +712,9 @@ describe('Importer', function () {
             const outputData = DataImporter.preProcess(_.cloneDeep(inputData));
 
             // Data preprocess is a noop
-            inputData.data.data.posts[0].should.eql(outputData.data.data.posts[0]);
-            inputData.data.data.tags[0].should.eql(outputData.data.data.tags[0]);
-            inputData.data.data.users[0].should.eql(outputData.data.data.users[0]);
+            assert.deepEqual(inputData.data.data.posts[0], outputData.data.data.posts[0]);
+            assert.deepEqual(inputData.data.data.tags[0], outputData.data.data.tags[0]);
+            assert.deepEqual(inputData.data.data.users[0], outputData.data.data.users[0]);
         });
     });
 });

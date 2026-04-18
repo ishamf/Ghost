@@ -1,7 +1,6 @@
 const assert = require('node:assert/strict');
 const {assertExists} = require('../../../utils/assertions');
 const path = require('path');
-const should = require('should');
 const sinon = require('sinon');
 const nock = require('nock');
 const configUtils = require('../../../utils/config-utils');
@@ -9,7 +8,6 @@ const mobiledocLib = require('../../../../core/server/lib/mobiledoc');
 const storage = require('../../../../core/server/adapters/storage');
 const urlUtils = require('../../../../core/shared/url-utils');
 const mockUtils = require('../../../utils/mocks');
-const logging = require('@tryghost/logging');
 
 describe('lib/mobiledoc', function () {
     afterEach(async function () {
@@ -140,13 +138,14 @@ describe('lib/mobiledoc', function () {
         });
 
         it('renders srcsets for absolute images', function () {
+            const siteUrl = configUtils.config.get('url');
             let mobiledoc = {
                 version: '0.3.1',
                 atoms: [],
                 cards: [
                     ['image', {
                         cardWidth: 'wide',
-                        src: 'http://127.0.0.1:2369/content/images/2018/04/NatGeo06.jpg',
+                        src: `${siteUrl}/content/images/2018/04/NatGeo06.jpg`,
                         width: 4000,
                         height: 2000,
                         caption: 'Birdies'
@@ -155,7 +154,7 @@ describe('lib/mobiledoc', function () {
                         images: [{
                             row: 0,
                             fileName: 'test.png',
-                            src: 'http://127.0.0.1:2369/content/images/test.png',
+                            src: `${siteUrl}/content/images/test.png`,
                             width: 1000,
                             height: 500
                         }]
@@ -168,7 +167,7 @@ describe('lib/mobiledoc', function () {
                 ]
             };
 
-            assert.equal(mobiledocLib.mobiledocHtmlRenderer.render(mobiledoc), '<figure class="kg-card kg-image-card kg-width-wide kg-card-hascaption"><img src="http://127.0.0.1:2369/content/images/2018/04/NatGeo06.jpg" class="kg-image" alt loading="lazy" width="2000" height="1000" srcset="http://127.0.0.1:2369/content/images/size/w600/2018/04/NatGeo06.jpg 600w, http://127.0.0.1:2369/content/images/size/w1000/2018/04/NatGeo06.jpg 1000w, http://127.0.0.1:2369/content/images/size/w1600/2018/04/NatGeo06.jpg 1600w, http://127.0.0.1:2369/content/images/size/w2400/2018/04/NatGeo06.jpg 2400w" sizes="(min-width: 1200px) 1200px"><figcaption>Birdies</figcaption></figure><figure class="kg-card kg-gallery-card kg-width-wide"><div class="kg-gallery-container"><div class="kg-gallery-row"><div class="kg-gallery-image"><img src="http://127.0.0.1:2369/content/images/test.png" width="1000" height="500" loading="lazy" alt srcset="http://127.0.0.1:2369/content/images/size/w600/test.png 600w, http://127.0.0.1:2369/content/images/test.png 1000w" sizes="(min-width: 720px) 720px"></div></div></div></figure>');
+            assert.equal(mobiledocLib.mobiledocHtmlRenderer.render(mobiledoc), `<figure class="kg-card kg-image-card kg-width-wide kg-card-hascaption"><img src="${siteUrl}/content/images/2018/04/NatGeo06.jpg" class="kg-image" alt loading="lazy" width="2000" height="1000" srcset="${siteUrl}/content/images/size/w600/2018/04/NatGeo06.jpg 600w, ${siteUrl}/content/images/size/w1000/2018/04/NatGeo06.jpg 1000w, ${siteUrl}/content/images/size/w1600/2018/04/NatGeo06.jpg 1600w, ${siteUrl}/content/images/size/w2400/2018/04/NatGeo06.jpg 2400w" sizes="(min-width: 1200px) 1200px"><figcaption>Birdies</figcaption></figure><figure class="kg-card kg-gallery-card kg-width-wide"><div class="kg-gallery-container"><div class="kg-gallery-row"><div class="kg-gallery-image"><img src="${siteUrl}/content/images/test.png" width="1000" height="500" loading="lazy" alt srcset="${siteUrl}/content/images/size/w600/test.png 600w, ${siteUrl}/content/images/test.png 1000w" sizes="(min-width: 720px) 720px"></div></div></div></figure>`);
         });
 
         it('respects srcsets config', function () {
@@ -290,7 +289,6 @@ describe('lib/mobiledoc', function () {
 
     describe('populateImageSizes', function () {
         let originalStoragePath;
-        let loggingStub;
 
         beforeEach(function () {
             originalStoragePath = storage.getStorage().storagePath;
@@ -311,12 +309,6 @@ describe('lib/mobiledoc', function () {
                 ]
             };
 
-            loggingStub = sinon.stub(logging, 'error');
-
-            nock('http://example.com/')
-                .get('/external.jpg')
-                .query(true)
-                .reply(404, 'Image not found');
             const unsplashMock = nock('https://images.unsplash.com/')
                 .get('/favicon_too_large')
                 .query(true)
@@ -328,9 +320,50 @@ describe('lib/mobiledoc', function () {
             const transformed = JSON.parse(transformedMobiledoc);
 
             assert.equal(unsplashMock.isDone(), true);
-            sinon.assert.calledOnce(loggingStub);
 
             assert.equal(transformed.cards.length, 4);
+            // external image should not be fetched (no sizing attempted)
+            assert.equal(transformed.cards[1][1].width, undefined);
+        });
+
+        it('fetches non-local image sizes from URL when urls:image is configured', async function () {
+            configUtils.set('urls:image', 'https://storage.ghost.is/c/6f/a3/test/content/images');
+            mobiledocLib.reload();
+
+            let mobiledoc = {
+                cards: [
+                    ['image', {src: 'https://storage.ghost.is/c/6f/a3/test/content/images/2026/02/ghost-logo.png'}]
+                ]
+            };
+
+            const cdnMock = nock('https://storage.ghost.is')
+                .get('/c/6f/a3/test/content/images/2026/02/ghost-logo.png')
+                .query(true)
+                .replyWithFile(200, path.join(__dirname, '../../../utils/fixtures/images/ghost-logo.png'), {
+                    'Content-Type': 'image/png'
+                });
+
+            const transformedMobiledoc = await mobiledocLib.populateImageSizes(JSON.stringify(mobiledoc));
+            const transformed = JSON.parse(transformedMobiledoc);
+
+            assert.equal(cdnMock.isDone(), true);
+            assert.equal(transformed.cards.length, 1);
+            assert.equal(transformed.cards[0][1].width, 800);
+            assert.equal(transformed.cards[0][1].height, 257);
+        });
+
+        it('skips sizing for arbitrary external URLs', async function () {
+            let mobiledoc = {
+                cards: [
+                    ['image', {src: 'http://169.254.169.254/latest/meta-data/'}]
+                ]
+            };
+
+            const transformedMobiledoc = await mobiledocLib.populateImageSizes(JSON.stringify(mobiledoc));
+            const transformed = JSON.parse(transformedMobiledoc);
+
+            assert.equal(transformed.cards[0][1].width, undefined);
+            assert.equal(transformed.cards[0][1].height, undefined);
         });
 
         // images can be stored with and without subdir when a subdir is configured

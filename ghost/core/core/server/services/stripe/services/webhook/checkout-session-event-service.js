@@ -1,6 +1,10 @@
 const _ = require('lodash');
 const errors = require('@tryghost/errors');
 const logging = require('@tryghost/logging');
+const {
+    canWelcomeEmailReplaceSignupPaidEmail
+} = require('../../../lib/member-signup-contexts');
+/** @typedef {import('../../../lib/member-signup-contexts').SignupContext} SignupContext */
 
 /**
  * Handles `checkout.session.completed` webhook events
@@ -10,6 +14,7 @@ const logging = require('@tryghost/logging');
  * It is triggered for the following scenarios:
  * - Subscription
  * - Donation
+ * - Gift purchase
  * - Setup intent
  *
  * This service delegates the event to the appropriate handler based on the session mode and metadata.
@@ -22,8 +27,10 @@ module.exports = class CheckoutSessionEventService {
      * @param {import('../../stripe-api')} deps.api
      * @param {object} deps.memberRepository
      * @param {object} deps.donationRepository
+     * @param {object} deps.giftService
      * @param {object} deps.staffServiceEmails
      * @param {function} deps.sendSignupEmail
+     * @param {function} deps.isPaidWelcomeEmailActive
      */
     constructor(deps) {
         this.api = deps.api;
@@ -46,7 +53,29 @@ module.exports = class CheckoutSessionEventService {
 
         if (session.mode === 'payment' && session.metadata?.ghost_donation) {
             await this.handleDonationEvent(session);
+        } else if (session.mode === 'payment' && session.metadata?.ghost_gift) {
+            await this.handleGiftEvent(session);
         }
+    }
+
+    /**
+     * Handles a `checkout.session.completed` event for a gift subscription purchase
+     *
+     * @param {import('stripe').Stripe.Checkout.Session} session
+     */
+    async handleGiftEvent(session) {
+        await this.deps.giftService.recordPurchase({
+            token: session.metadata?.gift_token,
+            buyerEmail: session.metadata?.buyer_email,
+            stripeCustomerId: session.customer ?? null,
+            tierId: session.metadata?.tier_id,
+            cadence: session.metadata?.cadence,
+            duration: session.metadata?.duration,
+            currency: session.currency,
+            amount: session.amount_total,
+            stripeCheckoutSessionId: session.id,
+            stripePaymentIntentId: session.payment_intent
+        });
     }
 
     /**
@@ -260,7 +289,18 @@ module.exports = class CheckoutSessionEventService {
         }
 
         if (checkoutType !== 'upgrade') {
-            this.deps.sendSignupEmail(customer.email);
+            const ghostSignupContext = /** @type {SignupContext | undefined} */ (session.metadata?.ghostSignupContext);
+            const shouldSkipSignupEmailWhenWelcomeEmailActive = canWelcomeEmailReplaceSignupPaidEmail(ghostSignupContext);
+
+            if (shouldSkipSignupEmailWhenWelcomeEmailActive) {
+                const isPaidWelcomeEmailActive = await this.deps.isPaidWelcomeEmailActive();
+                if (!isPaidWelcomeEmailActive) {
+                    this.deps.sendSignupEmail(customer.email);
+                }
+            } else {
+                // Direct checkout flows do not have a pre-checkout sign-in path.
+                this.deps.sendSignupEmail(customer.email);
+            }
         }
     }
 };

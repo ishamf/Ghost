@@ -6,8 +6,8 @@ import {useGlobalData} from '../../../providers/global-data-provider';
 
 const EmailNotificationsInputs: React.FC<{ user: User; setUserData: (user: User) => void; }> = ({user, setUserData}) => {
     const {config, settings} = useGlobalData();
-    const hasWebmentions = useFeatureFlag('webmentions');
     const hasStripeEnabled = checkStripeEnabled(settings || [], config || {});
+    const hasGiftSubscriptions = useFeatureFlag('giftSubscriptions');
 
     return (
         <SettingGroupContent>
@@ -21,15 +21,6 @@ const EmailNotificationsInputs: React.FC<{ user: User; setUserData: (user: User)
                 }}
             />
             {hasAdminAccess(user) && <>
-                {hasWebmentions && <Toggle
-                    checked={user.mention_notifications}
-                    direction='rtl'
-                    hint='Every time another site links to your work'
-                    label='Mentions'
-                    onChange={(e) => {
-                        setUserData?.({...user, mention_notifications: e.target.checked});
-                    }}
-                />}
                 <Toggle
                     checked={user.recommendation_notifications}
                     direction='rtl'
@@ -90,6 +81,15 @@ const EmailNotificationsInputs: React.FC<{ user: User; setUserData: (user: User)
                     label='Tips & donations'
                     onChange={(e) => {
                         setUserData?.({...user, donation_notifications: e.target.checked});
+                    }}
+                />}
+                {hasStripeEnabled && hasGiftSubscriptions && <Toggle
+                    checked={user.gift_subscription_purchase_notification}
+                    direction='rtl'
+                    hint='Every time someone purchases a gift subscription'
+                    label='Gift subscription purchases'
+                    onChange={(e) => {
+                        setUserData?.({...user, gift_subscription_purchase_notification: e.target.checked});
                     }}
                 />}
             </>}

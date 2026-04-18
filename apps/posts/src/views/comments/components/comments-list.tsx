@@ -1,15 +1,18 @@
 import CommentContent from './comment-content';
 import CommentThreadSidebar from './comment-thread-sidebar';
-import {Button, LucideIcon} from '@tryghost/shade';
+import LoadMoreButton from '@components/virtual-table/load-more-button';
+import {Button} from '@tryghost/shade/components';
 import {Comment, useHideComment, useShowComment} from '@tryghost/admin-x-framework/api/comments';
 import {CommentAvatar} from './comment-avatar';
 import {CommentHeader} from './comment-header';
 import {CommentMenu} from './comment-menu';
 import {CommentMetrics, buildThreadLink} from './comment-metrics';
 import {Link, useSearchParams} from '@tryghost/admin-x-framework';
+import {LucideIcon} from '@tryghost/shade/utils';
 import {forwardRef, useEffect, useRef, useState} from 'react';
 import {useInfiniteVirtualScroll} from '@components/virtual-table/use-infinite-virtual-scroll';
 import {useScrollRestoration} from '@components/virtual-table/use-scroll-restoration';
+import {useVirtualListWindow} from '@components/virtual-table/virtual-list-window';
 
 const SpacerRow = ({height}: { height: number }) => (
     <div aria-hidden="true" className="flex">
@@ -42,20 +45,21 @@ function CommentsList({
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
+    resetKey,
     onAddFilter,
-    isLoading,
-    commentPermalinksEnabled
+    isLoading
 }: {
     items: Comment[];
     totalItems: number;
     hasNextPage?: boolean;
     isFetchingNextPage?: boolean;
     fetchNextPage: () => void;
+    resetKey: string;
     onAddFilter: (field: string, value: string, operator?: string) => void;
     isLoading?: boolean;
-    commentPermalinksEnabled?: boolean;
 }) {
     const parentRef = useRef<HTMLDivElement>(null);
+    const {visibleItemCount, canLoadMore, loadMore} = useVirtualListWindow(totalItems, {resetKey});
     const [searchParams, setSearchParams] = useSearchParams();
     const [threadSidebarOpen, setThreadSidebarOpen] = useState(false);
     const [selectedThreadCommentId, setSelectedThreadCommentId] = useState<string | null>(null);
@@ -100,7 +104,7 @@ function CommentsList({
 
     const {visibleItems, spaceBefore, spaceAfter} = useInfiniteVirtualScroll({
         items,
-        totalItems,
+        totalItems: visibleItemCount,
         hasNextPage,
         isFetchingNextPage,
         fetchNextPage,
@@ -192,7 +196,6 @@ function CommentsList({
                                             />
                                             <CommentMenu
                                                 comment={item}
-                                                commentPermalinksEnabled={commentPermalinksEnabled}
                                             />
                                         </div>
                                     </div>
@@ -214,9 +217,12 @@ function CommentsList({
                 </div>
             </div>
 
+            {canLoadMore && (
+                <LoadMoreButton isLoading={isFetchingNextPage} onClick={loadMore} />
+            )}
+
             <CommentThreadSidebar
                 commentId={selectedThreadCommentId}
-                commentPermalinksEnabled={commentPermalinksEnabled}
                 open={threadSidebarOpen}
                 onOpenChange={handleCloseSidebar}
             />

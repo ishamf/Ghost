@@ -45,10 +45,10 @@ const PaidAccountActions = () => {
         let oldPriceClassName = '';
 
         const hasFreeTrial = subscriptionHasFreeTrial({sub: subscription});
+
         if (hasFreeTrial) {
             oldPriceClassName = 'gh-portal-account-old-price';
-        }
-        if (hasFreeTrial) {
+
             return (
                 <>
                     <p className={oldPriceClassName}>
@@ -60,9 +60,11 @@ const PaidAccountActions = () => {
         }
 
         let offerLabelStr = getOfferLabel({nextPayment});
+
         if (offerLabelStr) {
             oldPriceClassName = 'gh-portal-account-old-price';
         }
+
         const OfferLabel = () => {
             if (offerLabelStr) {
                 return (
@@ -159,7 +161,12 @@ const PaidAccountActions = () => {
             <>
                 <section>
                     <div className='gh-portal-list-detail'>
-                        <h3>{planLabel}</h3>
+                        <h3>
+                            {planLabel}
+                            {subscription?.cancel_at_period_end && (
+                                <span className="gh-portal-canceled-badge">{t('Canceled')}</span>
+                            )}
+                        </h3>
                         <PlanLabel price={price} isComplimentary={isComplimentary} subscription={subscription} />
                     </div>
                     <PlanUpdateButton isPaid={isPaid} />
@@ -190,9 +197,8 @@ function FreeTrialLabel({subscription}) {
  * Display discounted price if an offer is active
  *
  * Examples:
- * - "$10.00 — Next payment" (once offer)
  * - "$10.00/month — Forever" (forever offer)
- * - "$10.00/month — Ends 2026-01-01" (repeating offer)
+ * - "$10.00/month — Ends 2026-01-01" (once or repeating offer)
  *
  * @param {Object} nextPayment
  * @param {number} nextPayment.originalAmount - Original amount
@@ -201,11 +207,12 @@ function FreeTrialLabel({subscription}) {
  * @param {'month'|'year'} nextPayment.interval
  * @param {Object|null} nextPayment.discount
  * @param {'once'|'repeating'|'forever'} nextPayment.discount.duration
+ * @param {number|null} nextPayment.discount.duration_in_months - Discount duration in months for "repeating" offers
  * @param {string} nextPayment.discount.start - Discount start date (ISO 8601 date string)
- * @param {string|null} nextPayment.discount.end - Discount end date (ISO 8601 date string), null for forever / once offers
+ * @param {string|null} nextPayment.discount.end - Discount end date (ISO 8601 date string), null for forever offers
  * @param {'fixed'|'percent'} nextPayment.discount.type
  * @param {number} nextPayment.discount.amount - Discount amount (e.g. 20 for 20% percent offer, or 2 for $2 fixed offer)
-
+ *
  * @returns {string}
  */
 function getOfferLabel({nextPayment}) {
@@ -220,23 +227,16 @@ function getOfferLabel({nextPayment}) {
         return '';
     }
 
-    let durationLabel = '';
-    if (discount.duration === 'forever') {
-        durationLabel = t('Forever');
-    } else if (discount.duration === 'once') {
-        durationLabel = t('Next payment');
-    } else if (discount.duration === 'repeating' && discount.end) {
-        durationLabel = t('Ends {offerEndDate}', {offerEndDate: getDateString(discount.end)});
-    }
+    const durationLabel = discount.end
+        ? t('Ends {offerEndDate}', {offerEndDate: getDateString(discount.end)})
+        : t('Forever');
 
     const formattedPrice = Intl.NumberFormat('en', {currency: nextPayment.currency, style: 'currency'}).format(nextPayment.amount / 100);
 
-    let displayedPrice = '';
-    if (discount.duration === 'once') {
-        displayedPrice = formattedPrice;
-    } else {
-        displayedPrice = `${formattedPrice}/${nextPayment.interval}`;
-    }
+    // Possible values for nextPayment.interval for i18n parser:
+    // t('month')
+    // t('year')
+    const displayedPrice = `${formattedPrice}/${t(nextPayment.interval)}`;
 
     return `${displayedPrice}${durationLabel ? ` — ${durationLabel}` : ''}`;
 }

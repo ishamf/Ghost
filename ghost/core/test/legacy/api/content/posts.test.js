@@ -1,6 +1,5 @@
 const assert = require('node:assert/strict');
 const {assertExists} = require('../../../utils/assertions');
-const should = require('should');
 const supertest = require('supertest');
 const _ = require('lodash');
 const testUtils = require('../../../utils');
@@ -99,6 +98,46 @@ describe('api/endpoints/content/posts', function () {
 
         if (data.posts.length === 1) {
             throw new Error('fuck');
+        }
+    });
+
+    it('can not filter posts by authors.password.x (3-segment bypass)', async function () {
+        const hashedPassword = '$2a$10$FxFlCsNBgXw42cBj0l1GFu39jffibqTqyAGBz7uCLwetYAdBYJEe6';
+        const userId = '644fd18ca1f0b764b0279b2d';
+
+        await testUtils.knex('users').insert({
+            id: userId,
+            slug: 'brute-force-password-test-user',
+            name: 'Brute Force Password Test User',
+            email: 'bruteforcepasswordtestuseremail@example.com',
+            password: hashedPassword,
+            status: 'active',
+            created_at: '2019-01-01 00:00:00'
+        });
+
+        const {id: postId} = await testUtils.knex('posts').first('id').where('slug', 'welcome');
+
+        await testUtils.knex('posts_authors').insert({
+            id: '644fd18ca1f0b764b0279b2f',
+            post_id: postId,
+            author_id: userId
+        });
+
+        try {
+            const res = await request.get(localUtils.API.getApiQuery(`posts/?key=${validKey}&filter=authors.password.x:'${hashedPassword}'`))
+                .set('Origin', testUtils.API.getURL())
+                .expect('Content-Type', /json/)
+                .expect('Cache-Control', testUtils.cacheRules.public)
+                .expect(200);
+
+            const data = JSON.parse(res.text);
+
+            if (data.posts.length === 1) {
+                throw new Error('3-segment key bypass should not return filtered results');
+            }
+        } finally {
+            await testUtils.knex('posts_authors').where('id', '644fd18ca1f0b764b0279b2f').del();
+            await testUtils.knex('users').where('id', userId).del();
         }
     });
 
@@ -208,7 +247,8 @@ describe('api/endpoints/content/posts', function () {
                 }
                 const jsonResponse = res.body;
 
-                jsonResponse.posts.should.be.an.Array().with.lengthOf(13);
+                assert(Array.isArray(jsonResponse.posts));
+                assert.equal(jsonResponse.posts.length, 13);
 
                 done();
             });
@@ -222,7 +262,8 @@ describe('api/endpoints/content/posts', function () {
             .then((res) => {
                 const jsonResponse = res.body;
 
-                jsonResponse.posts.should.be.an.Array().with.lengthOf(3);
+                assert(Array.isArray(jsonResponse.posts));
+                assert.equal(jsonResponse.posts.length, 3);
                 assert.equal(jsonResponse.posts[0].slug, 'write');
                 assert.equal(jsonResponse.posts[1].slug, 'ghostly-kitchen-sink');
                 assert.equal(jsonResponse.posts[2].slug, 'grow');
@@ -237,7 +278,8 @@ describe('api/endpoints/content/posts', function () {
             .then((res) => {
                 const jsonResponse = res.body;
 
-                jsonResponse.posts.should.be.an.Array().with.lengthOf(3);
+                assert(Array.isArray(jsonResponse.posts));
+                assert.equal(jsonResponse.posts.length, 3);
                 assert.equal(jsonResponse.posts[0].slug, 'write');
                 assert.equal(jsonResponse.posts[1].slug, 'grow');
                 assert.equal(jsonResponse.posts[2].slug, 'ghostly-kitchen-sink');
@@ -260,7 +302,7 @@ describe('api/endpoints/content/posts', function () {
                 }
 
                 assert.equal(res.headers.vary, 'Accept-Version, Accept, Accept-Encoding');
-                res.headers.location.should.eql(`http://localhost:9999/ghost/api/content/posts/?key=${validKey}`);
+                assert.equal(res.headers.location, `http://localhost:9999/ghost/api/content/posts/?key=${validKey}`);
                 assertExists(res.headers['access-control-allow-origin']);
                 assert.equal(res.headers['x-cache-invalidate'], undefined);
                 done();
@@ -472,7 +514,7 @@ describe('api/endpoints/content/posts', function () {
                         }
                     });
 
-                    seen.should.eql(membersOnlySlugs.length + freeToSeeSlugs.length);
+                    assert.equal(seen, membersOnlySlugs.length + freeToSeeSlugs.length);
 
                     // check meta response for this test
                     assert.equal(jsonResponse.meta.pagination.page, 1);

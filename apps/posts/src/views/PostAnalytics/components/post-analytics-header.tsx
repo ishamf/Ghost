@@ -1,37 +1,9 @@
 import React, {useMemo, useState} from 'react';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-    Button,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-    H1,
-    LucideIcon,
-    Navbar,
-    PageMenu,
-    PageMenuItem,
-    PostShareModal,
-    formatDisplayDate,
-    formatDisplayTime,
-    formatNumber
-} from '@tryghost/shade';
+import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Navbar, PageMenu, PageMenuItem} from '@tryghost/shade/components';
+import {H1} from '@tryghost/shade/primitives';
+import {LucideIcon, formatDisplayDate, formatDisplayTime, formatNumber} from '@tryghost/shade/utils';
 import {Post, useGlobalData} from '@src/providers/post-analytics-context';
+import {PostShareModal} from '@tryghost/shade/patterns';
 import {getSiteTimezone} from '@src/utils/get-site-timezone';
 import {hasBeenEmailed, isEmailOnly, isPublishedAndEmailed, isPublishedOnly, useActiveVisitors, useNavigate} from '@tryghost/admin-x-framework';
 import {useAppContext} from '@src/providers/posts-app-context';
@@ -82,10 +54,13 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
         if (hasBeenEmailed(post as Post)) {
             tabs.push('Newsletter');
         }
-        tabs.push('Growth');
+        // Only show Growth tab if member source tracking is enabled
+        if (appSettings?.analytics.membersTrackSources) {
+            tabs.push('Growth');
+        }
 
         return tabs;
-    }, [post, appSettings?.analytics.webAnalytics]);
+    }, [post, appSettings?.analytics.webAnalytics, appSettings?.analytics.membersTrackSources]);
 
     const handleDeletePost = () => {
         if (!post) {
@@ -114,7 +89,7 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
         <>
             <header className='z-50 -mx-8 bg-white/70 backdrop-blur-md dark:bg-black'>
                 <div
-                    className='relative flex min-h-[102px] w-full items-start justify-between gap-5 px-8 pb-0 pt-8'
+                    className='relative flex min-h-[102px] w-full items-start justify-between gap-5 px-8 pt-8 pb-0'
                     data-header='header'
                 >
                     <div className='flex w-full flex-col gap-5'>
@@ -285,7 +260,7 @@ const PostAnalyticsHeader:React.FC<PostAnalyticsHeaderProps> = ({
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            className="hover:bg-red-700 bg-red-600 text-white"
+                            className="bg-red-600 text-white hover:bg-red-700"
                             onClick={performDelete}
                         >
                             Delete

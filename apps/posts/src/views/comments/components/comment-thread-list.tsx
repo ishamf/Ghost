@@ -1,12 +1,13 @@
 import CommentContent from './comment-content';
 import React from 'react';
-import {Button, LucideIcon} from '@tryghost/shade';
+import {Button, LoadingIndicator} from '@tryghost/shade/components';
 import {Comment, useHideComment, useShowComment} from '@tryghost/admin-x-framework/api/comments';
 import {CommentAvatar} from './comment-avatar';
 import {CommentHeader} from './comment-header';
 import {CommentMenu} from './comment-menu';
 import {CommentMetrics, buildThreadLink} from './comment-metrics';
 import {Link, useSearchParams} from '@tryghost/admin-x-framework';
+import {LucideIcon} from '@tryghost/shade/utils';
 
 function RepliesLine({hasReplies}: {hasReplies: boolean}) {
     if (!hasReplies) {
@@ -26,10 +27,9 @@ interface CommentRowProps {
     isReply?: boolean;
     isSelectedComment?: boolean;
     selectedCommentId?: string;
-    commentPermalinksEnabled?: boolean;
 }
 
-function CommentRow({comment, isReply = false, isSelectedComment = false, selectedCommentId, commentPermalinksEnabled}: CommentRowProps) {
+function CommentRow({comment, isReply = false, isSelectedComment = false, selectedCommentId}: CommentRowProps) {
     const [searchParams] = useSearchParams();
     const {mutate: hideComment} = useHideComment();
     const {mutate: showComment} = useShowComment();
@@ -100,19 +100,17 @@ function CommentRow({comment, isReply = false, isSelectedComment = false, select
                             />
                             <CommentMenu
                                 comment={comment}
-                                commentPermalinksEnabled={commentPermalinksEnabled}
                             />
                         </div>
                     </div>
 
                     {/* Render nested replies INSIDE the parent comment */}
                     {hasReplies && comment.replies && (
-                        <div className="-ml-2 mb-4 mt-7 pl-2 md:-ml-3 md:mb-0 md:mt-8 md:pl-3">
+                        <div className="mt-7 mb-4 -ml-2 pl-2 md:mt-8 md:mb-0 md:-ml-3 md:pl-3">
                             {comment.replies.map(reply => (
                                 <CommentRow
                                     key={reply.id}
                                     comment={reply}
-                                    commentPermalinksEnabled={commentPermalinksEnabled}
                                     isReply={true}
                                     selectedCommentId={selectedCommentId}
                                 />
@@ -129,14 +127,18 @@ interface CommentThreadListProps {
     selectedComment: Comment;
     replies: Comment[];
     selectedCommentId: string;
-    commentPermalinksEnabled?: boolean;
+    fetchNextPage: () => void;
+    hasNextPage?: boolean;
+    isFetchingNextPage: boolean;
 }
 
 const CommentThreadList: React.FC<CommentThreadListProps> = ({
     selectedComment,
     replies,
     selectedCommentId,
-    commentPermalinksEnabled
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
 }) => {
     // All replies are children of the selected comment (flat structure from API)
     const commentWithReplies: Comment = {...selectedComment, replies};
@@ -145,10 +147,27 @@ const CommentThreadList: React.FC<CommentThreadListProps> = ({
         <div className="flex flex-col" data-testid="comment-thread-list">
             <CommentRow
                 comment={commentWithReplies}
-                commentPermalinksEnabled={commentPermalinksEnabled}
                 isSelectedComment={true}
                 selectedCommentId={selectedCommentId}
             />
+            {hasNextPage && (
+                <div className="flex justify-center pb-4">
+                    <Button
+                        disabled={isFetchingNextPage}
+                        variant="outline"
+                        onClick={() => fetchNextPage()}
+                    >
+                        {isFetchingNextPage ? (
+                            <>
+                                <LoadingIndicator size="sm" />
+                                Loading...
+                            </>
+                        ) : (
+                            'Load more replies'
+                        )}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

@@ -164,6 +164,21 @@ describe('UNIT: settings cache', function () {
         values.title = 'hello world';
         values.timezone = 'PST';
         values.secondary_navigation = false;
+        // transistor_portal_enabled is computed server-side: transistor && transistor_portal_enabled
+        values.transistor_portal_enabled = false;
+
+        assert.deepEqual(cache.getPublic(), values);
+    });
+
+    it('.getPublic() respects a transistor override when computing portal visibility', function () {
+        cache = createCacheManager({
+            transistor: false
+        });
+        cache.set('transistor', {value: true});
+        cache.set('transistor_portal_enabled', {value: true});
+
+        let values = _.zipObject(_.keys(publicSettings), _.fill(Array(_.size(publicSettings)), null));
+        values.transistor_portal_enabled = false;
 
         assert.deepEqual(cache.getPublic(), values);
     });

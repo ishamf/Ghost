@@ -1,24 +1,16 @@
-import {
-    Button,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    LucideIcon
-} from '@tryghost/shade';
+import {Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@tryghost/shade/components';
 import {Comment} from '@tryghost/admin-x-framework/api/comments';
 import {DisableCommentingDialog} from './disable-commenting-dialog';
+import {LucideIcon} from '@tryghost/shade/utils';
 import {useDisableMemberCommenting, useEnableMemberCommenting} from '@tryghost/admin-x-framework/api/members';
 import {useState} from 'react';
 
 interface CommentMenuProps {
     comment: Comment;
-    commentPermalinksEnabled?: boolean;
 }
 
 export function CommentMenu({
-    comment,
-    commentPermalinksEnabled
+    comment
 }: CommentMenuProps) {
     const {mutate: disableCommenting} = useDisableMemberCommenting();
     const {mutate: enableCommenting} = useEnableMemberCommenting();
@@ -60,21 +52,12 @@ export function CommentMenu({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                     {postUrl && (
-                        commentPermalinksEnabled ? (
-                            <DropdownMenuItem asChild>
-                                <a href={`${postUrl}#ghost-comments-${commentId}`} rel="noopener noreferrer" target="_blank">
-                                    <LucideIcon.ExternalLink className="size-4" />
-                                    View on post
-                                </a>
-                            </DropdownMenuItem>
-                        ) : (
-                            <DropdownMenuItem asChild>
-                                <a href={postUrl} rel="noopener noreferrer" target="_blank">
-                                    <LucideIcon.ExternalLink className="size-4" />
-                                    View post
-                                </a>
-                            </DropdownMenuItem>
-                        )
+                        <DropdownMenuItem asChild>
+                            <a href={`${postUrl}#ghost-comments-${commentId}`} rel="noopener noreferrer" target="_blank">
+                                <LucideIcon.ExternalLink className="size-4" />
+                                View on post
+                            </a>
+                        </DropdownMenuItem>
                     )}
                     {memberId && (
                         <DropdownMenuItem asChild>
