@@ -271,11 +271,13 @@ describe('CheckoutSessionEventService', function () {
     });
 
     describe('handleSetupEvent', function () {
-        it('fires getSetupIntent', function () {
+        it('fires getSetupIntent', async function () {
             const service = createService();
             const session = {setup_intent: 'si_123'};
 
-            service.handleSetupEvent(session);
+            api.getSetupIntent.resolves({metadata: {customer_id: 'cust_123'}});
+
+            await service.handleSetupEvent(session);
 
             sinon.assert.calledWith(api.getSetupIntent, 'si_123');
         });
@@ -574,13 +576,15 @@ describe('CheckoutSessionEventService', function () {
                 currency: 'usd',
                 customer: 'cust_123',
                 payment_intent: 'pi_test_456',
+                customer_details: {
+                    email: 'buyer@example.com'
+                },
                 metadata: {
                     ghost_gift: 'true',
                     gift_token: 'abc-123-token',
                     tier_id: 'tier_456',
                     cadence: 'year',
-                    duration: '1',
-                    buyer_email: 'buyer@example.com'
+                    duration: '1'
                 }
             };
 
@@ -611,13 +615,15 @@ describe('CheckoutSessionEventService', function () {
                 currency: 'gbp',
                 customer: null,
                 payment_intent: 'pi_test_789',
+                customer_details: {
+                    email: 'guest@example.com'
+                },
                 metadata: {
                     ghost_gift: 'true',
                     gift_token: 'def-456-token',
                     tier_id: 'tier_111',
                     cadence: 'month',
-                    duration: '1',
-                    buyer_email: 'guest@example.com'
+                    duration: '1'
                 }
             };
 

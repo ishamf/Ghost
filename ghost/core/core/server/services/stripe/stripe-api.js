@@ -4,6 +4,7 @@ const {VersionMismatchError} = require('@tryghost/errors');
 const debug = require('@tryghost/debug')('stripe');
 const ghostConfig = require('../../../shared/config');
 const Stripe = require('stripe').Stripe;
+const {t} = require('../i18n');
 
 /* Stripe has the following rate limits:
 *  - For most APIs, 100 read requests per second in live mode, 25 read requests per second in test mode
@@ -695,14 +696,16 @@ module.exports = class StripeAPI {
      * @param {string} options.successUrl
      * @param {string} options.cancelUrl
      * @param {ICustomer|null} options.customer
-     * @param {string|null} options.customerEmail
+     * @param {string} [options.customerEmail]
      *
      * @returns {Promise<ICheckoutSession>}
      */
     async createGiftCheckoutSession({amount, currency, tierName, cadence, duration, metadata, successUrl, cancelUrl, customer, customerEmail}) {
         await this._rateLimitBucket.throttle();
 
-        const cadenceLabel = duration === 1 ? `1 ${cadence}` : `${duration} ${cadence}s`;
+        const cadenceLabel = cadence === 'year' ?
+            t('{count} year', {count: duration}) :
+            t('{count} month', {count: duration});
 
         const stripeSessionOptions = {
             mode: 'payment',
@@ -720,7 +723,7 @@ module.exports = class StripeAPI {
                     currency,
                     unit_amount: amount,
                     product_data: {
-                        name: `Gift Subscription - ${tierName} (${cadenceLabel})`
+                        name: `${t('Gift subscription')} — ${tierName} (${cadenceLabel})`
                     }
                 },
                 quantity: 1
