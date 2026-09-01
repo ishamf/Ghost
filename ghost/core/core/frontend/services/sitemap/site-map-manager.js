@@ -1,296 +1,230 @@
-const DomainEvents = require('@tryghost/domain-events');
-const config = require('../../../shared/config');
-const {URLResourceUpdatedEvent} = require('../../../shared/events');
+const errors = require('@tryghost/errors');
+const urlUtils = require('../../../shared/url-utils').default;
 const IndexMapGenerator = require('./site-map-index-generator');
 const PagesMapGenerator = require('./page-map-generator');
 const PostsMapGenerator = require('./post-map-generator');
 const UsersMapGenerator = require('./user-map-generator');
 const TagsMapGenerator = require('./tags-map-generator');
 
-// This uses events from the routing service and the URL service
-const events = require('../../../server/lib/common/events');
+// Frontend-internal routing domain events (RouteRegistered / RoutesReset)
+const routingEvents = require('../routing/events');
+
+// What the sitemap XML reads off each resource, beyond the columns URL
+// computation needs: lastmod dates, image nodes, and the canonical_url skip
+// rule applied by the generators.
+const SITEMAP_COLUMNS = [
+  'updated_at',
+  'published_at',
+  'created_at',
+  'feature_image',
+  'cover_image',
+  'profile_image',
+  'canonical_url',
+];
 
 class SiteMapManager {
-    constructor(options) {
-        options = options || {};
+  constructor(options) {
+    options = options || {};
 
-        options.maxPerPage = options.maxPerPage || 50000;
+    options.maxPerPage = options.maxPerPage || 50000;
 
-        this.pages = options.pages || this.createPagesGenerator(options);
-        this.posts = options.posts || this.createPostsGenerator(options);
-        this.users = this.authors = options.authors || this.createUsersGenerator(options);
-        this.tags = options.tags || this.createTagsGenerator(options);
-        this.index = options.index || this.createIndexGenerator(options);
+    this.pages = options.pages || this.createPagesGenerator(options);
+    this.posts = options.posts || this.createPostsGenerator(options);
+    this.users = this.authors = options.authors || this.createUsersGenerator(options);
+    this.tags = options.tags || this.createTagsGenerator(options);
+    this.index = options.index || this.createIndexGenerator(options);
 
-        // The lazy URL service does not fire url.added / url.removed /
-        // URLResourceUpdatedEvent. When that mode is active the sitemap
-        // populates itself from the database on first request instead.
-        this._lazyRouting = options.lazyRouting === undefined
-            ? config.get('lazyRouting')
-            : options.lazyRouting;
-        this._populated = false;
-        this._populating = null;
-        // Each routers.reset bumps this generation. An in-flight populate
-        // captures the generation it started in; if that generation is no
-        // longer current when the populate settles, its result is discarded
-        // so we don't mark a stale (potentially mid-reset) lookup as ready.
-        this._populationGeneration = 0;
+    // The URL service is injectable for tests; in production it is
+    // resolved lazily through the proxy seam on first use, because the
+    // url service loads at require time and loading it when this module
+    // loads would change boot order.
+    this._urlService = options.urlService || null;
 
-        events.on('router.created', (router) => {
-            if (router.name === 'StaticRoutesRouter') {
-                this.pages.addUrl(router.getRoute({absolute: true}), {id: router.identifier, staticRoute: true});
-            }
+    // Server events arrive through the proxy's narrow subscription
+    // surface (site.changed). Injectable for tests; resolved at
+    // construction (not module load) for the same boot-order reason as
+    // the url service above.
+    this._serverEvents = options.serverEvents || require('../proxy').serverEvents;
 
-            if (router.name === 'CollectionRouter') {
-                this.pages.addUrl(router.getRoute({absolute: true}), {id: router.identifier, staticRoute: false});
-            }
-        });
+    // Index state for the build path. _indexEpoch increments on every
+    // invalidation signal; a build compares the epoch it started with so
+    // an invalidated-while-running build never marks the index ready.
+    this._indexBuilt = false;
+    this._buildInFlight = null;
+    this._indexEpoch = 0;
+    // Static/collection route entries only arrive via RouteRegistered,
+    // which fires at boot and routes reload. They are recorded here so
+    // every rebuild can replay them after resetting the generators.
+    this._routerEntries = [];
 
-        if (!this._lazyRouting) {
-            DomainEvents.subscribe(URLResourceUpdatedEvent, (event) => {
-                this[event.data.resourceType].updateURL(event.data);
-            });
+    routingEvents.on('RouteRegistered', ({ path, type, id }) => {
+      if (type !== 'StaticRoutesRouter' && type !== 'CollectionRouter') {
+        return;
+      }
+      const entry = {
+        url: urlUtils.createUrl(path, true),
+        datum: { id, staticRoute: type === 'StaticRoutesRouter' },
+      };
+      this._routerEntries.push(entry);
+      this.pages.addUrl(entry.url, entry.datum);
+      // A router registering after a build must not leave a
+      // zero-router index marked built — the CDN would pin it.
+      this._invalidateIndex();
+    });
 
-            events.on('url.added', (obj) => {
-                this[obj.resource.config.type].addUrl(obj.url.absolute, obj.resource.data);
-            });
+    // Nothing feeds the index per URL, so any change to the site's content
+    // empties it and the next read rebuilds.
+    this._serverEvents.on('site.changed', () => {
+      this._invalidateIndex();
+    });
 
-            events.on('url.removed', (obj) => {
-                this[obj.resource.config.type].removeUrl(obj.url.absolute, obj.resource.data);
-            });
-        }
+    routingEvents.on('RoutesReset', () => {
+      this.pages && this.pages.reset();
+      this.posts && this.posts.reset();
+      this.users && this.users.reset();
+      this.tags && this.tags.reset();
+      // The routers re-register right after a reset and refill the
+      // list; keeping stale entries would resurrect deleted routes.
+      this._routerEntries = [];
+      this._invalidateIndex();
+    });
+  }
 
-        events.on('routers.reset', () => {
-            this.pages && this.pages.reset();
-            this.posts && this.posts.reset();
-            this.users && this.users.reset();
-            this.tags && this.tags.reset();
-            // Force the next sitemap request to repopulate from the DB.
-            // Bumping the generation invalidates any populate currently in
-            // flight (its `.then` will see a stale generation and bail).
-            this._populated = false;
-            this._populating = null;
-            this._populationGeneration += 1;
-        });
+  createIndexGenerator(options) {
+    return new IndexMapGenerator({
+      types: {
+        pages: this.pages,
+        posts: this.posts,
+        authors: this.authors,
+        tags: this.tags,
+      },
+      maxPerPage: options.maxPerPage,
+    });
+  }
+
+  createPagesGenerator(options) {
+    return new PagesMapGenerator(options);
+  }
+
+  createPostsGenerator(options) {
+    return new PostsMapGenerator(options);
+  }
+
+  createUsersGenerator(options) {
+    return new UsersMapGenerator(options);
+  }
+
+  createTagsGenerator(options) {
+    return new TagsMapGenerator(options);
+  }
+
+  async getIndexXml() {
+    await this._ensureIndexReady();
+    return this.index.getXml();
+  }
+
+  async getSiteMapXml(type, page) {
+    await this._ensureIndexReady();
+    return this[type].getXml(page);
+  }
+
+  /**
+   * Make sure the index is ready to serve; every XML read awaits this, so
+   * no caller can render from an unbuilt index. The index is built on first
+   * read; the invalidation signals empty it and the next read rebuilds.
+   *
+   * Concurrent readers share one build. A build whose result was
+   * invalidated while it ran is discarded and the read fails — the index
+   * must never serve pre-invalidation data (the CDN would pin it for the
+   * full cache maxAge), and a 503 is retried by crawlers and stored by
+   * nobody. Deliberately no retry; if SITEMAP_BUILD_SUPERSEDED shows up in
+   * the logs at any rate worth caring about, add one then.
+   */
+  async _ensureIndexReady() {
+    if (this._indexBuilt) {
+      return;
     }
-
-    createIndexGenerator(options) {
-        return new IndexMapGenerator({
-            types: {
-                pages: this.pages,
-                posts: this.posts,
-                authors: this.authors,
-                tags: this.tags
-            },
-            maxPerPage: options.maxPerPage
-        });
+    if (!this._buildInFlight) {
+      this._buildInFlight = this._buildIndex().finally(() => {
+        this._buildInFlight = null;
+      });
     }
+    await this._buildInFlight;
 
-    createPagesGenerator(options) {
-        return new PagesMapGenerator(options);
+    if (!this._indexBuilt) {
+      throw new errors.MaintenanceError({
+        message: 'Sitemap index build was invalidated by a concurrent site change',
+        code: 'SITEMAP_BUILD_SUPERSEDED',
+      });
     }
+  }
 
-    createPostsGenerator(options) {
-        return new PostsMapGenerator(options);
+  async _buildIndex() {
+    const epoch = this._indexEpoch;
+    const urlService = this._getUrlService();
+    const fetch = (type) => urlService.getRoutableResources(type, { columns: SITEMAP_COLUMNS });
+
+    const [posts, pages, tags, authors] = await Promise.all([
+      fetch('posts'),
+      fetch('pages'),
+      fetch('tags'),
+      fetch('authors'),
+    ]);
+    const resources = { posts, pages, tags, authors };
+
+    if (epoch !== this._indexEpoch) {
+      // Invalidated while fetching: leave the generators alone and let
+      // _ensureIndexReady start over.
+      return;
     }
-
-    createUsersGenerator(options) {
-        return new UsersMapGenerator(options);
+    // Everything from here on is synchronous, so no request can observe
+    // a half-applied index.
+    this.posts.reset();
+    this.pages.reset();
+    this.tags.reset();
+    this.users.reset();
+    for (const entry of this._routerEntries) {
+      this.pages.addUrl(entry.url, entry.datum);
     }
-
-    createTagsGenerator(options) {
-        return new TagsMapGenerator(options);
+    for (const type of ['posts', 'pages', 'tags', 'authors']) {
+      for (const datum of resources[type]) {
+        this._applyResource(type, datum);
+      }
     }
+    this._indexBuilt = true;
+  }
 
-    getIndexXml() {
-        return this.index.getXml();
+  _invalidateIndex() {
+    this._indexBuilt = false;
+    this._indexEpoch += 1;
+  }
+
+  /**
+   * Add a single resource to the index.
+   */
+  _applyResource(type, datum) {
+    const url = this._getUrlService().getUrlForResource({ ...datum, type }, { absolute: true });
+    // Exact match on the not-found sentinel: a real resource can carry
+    // a slug like "404" (/tag/404/) and must stay in the sitemap.
+    if (url && url !== this._notFoundUrl()) {
+      this[type].addUrl(url, datum);
     }
+  }
 
-    getSiteMapXml(type, page) {
-        return this[type].getXml(page);
+  _notFoundUrl() {
+    // The site URL is fixed at boot, so compute the sentinel once.
+    if (!this._notFoundUrlCached) {
+      this._notFoundUrlCached = urlUtils.createUrl('/404/', true);
     }
+    return this._notFoundUrlCached;
+  }
 
-    /**
-     * Populate the sitemap from the database. Used when the lazy URL service
-     * is active and the URL-added/-removed events are not firing. Idempotent;
-     * a second call is a no-op while the first is in flight or has finished.
-     */
-    async ensurePopulatedFromDatabase() {
-        if (!this._lazyRouting || this._populated) {
-            return;
-        }
-        if (this._populating) {
-            return this._populating;
-        }
-        const generation = this._populationGeneration;
-        const populating = this._populateFromDatabase().then(
-            () => {
-                // If a routers.reset happened while we were running, the
-                // generators have been wiped. Don't flip _populated; let the
-                // next request kick off a fresh populate.
-                if (this._populationGeneration === generation) {
-                    this._populated = true;
-                }
-                // Only clear our own handle. routers.reset already nulled
-                // _populating and a successor populate may have replaced it
-                // — clobbering would orphan the successor.
-                if (this._populating === populating) {
-                    this._populating = null;
-                }
-            },
-            (err) => {
-                if (this._populating === populating) {
-                    this._populating = null;
-                }
-                throw err;
-            }
-        );
-        this._populating = populating;
-        return this._populating;
+  _getUrlService() {
+    if (!this._urlService) {
+      this._urlService = require('../proxy').urlService;
     }
-
-    async _populateFromDatabase() {
-        const models = require('../../../server/models');
-        const urlService = require('../../../server/services/url');
-        const facade = urlService.facade;
-
-        await Promise.all([
-            this._loadType('posts', this.posts, facade, models),
-            this._loadType('pages', this.pages, facade, models),
-            this._loadType('tags', this.tags, facade, models),
-            this._loadType('authors', this.users, facade, models)
-        ]);
-    }
-
-    async _loadType(type, generator, facade, models) {
-        const fetchOptions = TYPE_FETCH_OPTIONS[type];
-        if (!fetchOptions) {
-            return;
-        }
-        // Use the same raw-knex path as the eager URL service's resource
-        // fetcher (services/url/resources.js → raw_knex.fetchAll). The
-        // previous implementation went through Bookshelf's findPage and
-        // toPlain per row, which is minutes-not-seconds for 50k posts —
-        // slow enough that edge proxies 503 on the first sitemap request.
-        const objects = await models.Base.Model.raw_knex.fetchAll(fetchOptions);
-        for (const datum of objects) {
-            const url = facade.getUrlForResource({...datum, type}, {absolute: true});
-            if (url && !url.match(/\/404\//)) {
-                generator.addUrl(url, datum);
-            }
-        }
-    }
+    return this._urlService;
+  }
 }
-
-// Mirrors the eager URL service's resource configs (services/url/config.js)
-// so the lazy sitemap renders the same URL set as the eager service would.
-// When the eager service is removed this becomes the only copy — kept
-// inline (rather than imported from services/url) so the eager removal is
-// a clean delete.
-//
-// The `exclude` lists trim heavy columns (mobiledoc, lexical, html,
-// plaintext, codeinjection, og/twitter card fields, …) before they ever
-// reach memory. Without them, fetchAll loads the full body of every post
-// — multiple GB on a 50k-post site.
-//
-// `withRelated: ['tags', 'authors']` for posts is what surfaces
-// `primary_tag` / `primary_author` on the result: Post.toJSON's computed
-// `primary_tag` field (models/post.js) and the authors-relation
-// serialize mixin both run as part of raw_knex.fetchAll's per-row
-// toJSON pass, gated only on the relation being loaded.
-const TYPE_FETCH_OPTIONS = {
-    posts: {
-        modelName: 'Post',
-        filter: 'status:published+type:post',
-        exclude: [
-            'title',
-            'mobiledoc',
-            'lexical',
-            'html',
-            'plaintext',
-            'status',
-            'codeinjection_head',
-            'codeinjection_foot',
-            'meta_title',
-            'meta_description',
-            'custom_excerpt',
-            'og_image',
-            'og_title',
-            'og_description',
-            'twitter_image',
-            'twitter_title',
-            'twitter_description',
-            'custom_template',
-            'locale',
-            'newsletter_id',
-            'show_title_and_feature_image',
-            'email_recipient_filter',
-            'comment_id',
-            'tiers'
-        ],
-        withRelated: ['tags', 'authors'],
-        withRelatedFields: {
-            tags: ['tags.id', 'tags.slug'],
-            authors: ['users.id', 'users.slug']
-        }
-    },
-    pages: {
-        modelName: 'Post',
-        filter: 'status:published+type:page',
-        exclude: [
-            'title',
-            'mobiledoc',
-            'lexical',
-            'html',
-            'plaintext',
-            'codeinjection_head',
-            'codeinjection_foot',
-            'meta_title',
-            'meta_description',
-            'custom_excerpt',
-            'og_image',
-            'og_title',
-            'og_description',
-            'twitter_image',
-            'twitter_title',
-            'twitter_description',
-            'custom_template',
-            'locale',
-            'tags',
-            'authors',
-            'primary_tag',
-            'primary_author',
-            'newsletter_id',
-            'show_title_and_feature_image',
-            'email_recipient_filter',
-            'comment_id',
-            'tiers'
-        ]
-    },
-    tags: {
-        modelName: 'Tag',
-        filter: 'visibility:public',
-        exclude: ['description', 'meta_title', 'meta_description', 'parent_id'],
-        shouldHavePosts: {joinTo: 'tag_id', joinTable: 'posts_tags'}
-    },
-    authors: {
-        modelName: 'User',
-        filter: 'visibility:public',
-        exclude: [
-            'bio',
-            'website',
-            'location',
-            'facebook',
-            'twitter',
-            'locale',
-            'accessibility',
-            'meta_title',
-            'meta_description',
-            'tour',
-            'last_seen'
-        ],
-        shouldHavePosts: {joinTo: 'author_id', joinTable: 'posts_authors'}
-    }
-};
 
 module.exports = SiteMapManager;

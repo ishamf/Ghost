@@ -1,12 +1,10 @@
 const sinon = require('sinon');
 const assert = require('node:assert/strict');
-const {assertExists} = require('../../../../utils/assertions');
+const { assertExists } = require('../../../../utils/assertions');
 
 // Stuff we are testing
-const DomainEvents = require('@tryghost/domain-events');
-const {URLResourceUpdatedEvent} = require('../../../../../core/shared/events');
-
-const events = require('../../../../../core/server/lib/common/events');
+const routingEvents = require('../../../../../core/frontend/services/routing/events');
+const urlUtils = require('../../../../../core/shared/url-utils').default;
 
 const SiteMapManager = require('../../../../../core/frontend/services/sitemap/site-map-manager');
 const PostGenerator = require('../../../../../core/frontend/services/sitemap/post-map-generator');
@@ -16,410 +14,342 @@ const UserGenerator = require('../../../../../core/frontend/services/sitemap/use
 const IndexGenerator = require('../../../../../core/frontend/services/sitemap/site-map-index-generator');
 
 describe('Unit: sitemap/manager', function () {
-    let eventsToRemember;
+  let eventsToRemember;
 
-    const makeStubManager = function () {
-        let posts;
-        let pages;
-        let tags;
-        let authors;
+  const makeStubManager = function () {
+    let posts;
+    let pages;
+    let tags;
+    let authors;
 
-        posts = new PostGenerator();
-        pages = new PageGenerator();
-        tags = new TagGenerator();
-        authors = new UserGenerator();
+    posts = new PostGenerator();
+    pages = new PageGenerator();
+    tags = new TagGenerator();
+    authors = new UserGenerator();
 
-        return new SiteMapManager({posts: posts, pages: pages, tags: tags, authors: authors});
-    };
+    // The index is built from the url service on first read, so even the
+    // legacy render tests need one injected.
+    return new SiteMapManager({
+      posts: posts,
+      pages: pages,
+      tags: tags,
+      authors: authors,
+      urlService: {
+        getRoutableResources: async () => [],
+        getUrlForResource: () => '/x/',
+      },
+      // Server events come through the proxy's narrow surface in
+      // production; injected here like the url service
+      serverEvents: {
+        on: (eventName, callback) => {
+          eventsToRemember[eventName] = callback;
+        },
+      },
+    });
+  };
+
+  beforeAll(function () {
+    eventsToRemember = {};
+
+    // @NOTE: the pattern of faking event call is not great, we should be
+    //        ideally testing on real events instead of faking them
+    // RouteRegistered / RoutesReset are frontend-internal routing events
+    sinon.stub(routingEvents, 'on').callsFake(function (eventName, callback) {
+      eventsToRemember[eventName] = callback;
+    });
+
+    sinon.stub(PostGenerator.prototype, 'getXml');
+    sinon.stub(PostGenerator.prototype, 'addUrl');
+    sinon.stub(IndexGenerator.prototype, 'getXml');
+  });
+
+  afterAll(function () {
+    sinon.restore();
+  });
+
+  describe('SiteMapManager', function () {
+    let manager;
 
     beforeAll(function () {
-        eventsToRemember = {};
-
-        // @NOTE: the pattern of faking event call is not great, we should be
-        //        ideally tasting on real events instead of faking them
-        sinon.stub(events, 'on').callsFake(function (eventName, callback) {
-            eventsToRemember[eventName] = callback;
-        });
-
-        sinon.stub(PostGenerator.prototype, 'getXml');
-        sinon.stub(PostGenerator.prototype, 'addUrl');
-        sinon.stub(PostGenerator.prototype, 'removeUrl');
-        sinon.stub(IndexGenerator.prototype, 'getXml');
+      manager = makeStubManager();
     });
 
-    afterAll(function () {
-        sinon.restore();
+    it('can create a SiteMapManager instance', function () {
+      assertExists(manager);
+      assert.equal(Object.keys(eventsToRemember).length, 3);
+      assertExists(eventsToRemember.RouteRegistered);
+      assertExists(eventsToRemember.RoutesReset);
+      assertExists(eventsToRemember['site.changed']);
     });
 
-    describe('SiteMapManager', function () {
-        let manager;
+    describe('build path: the index is built from routable resources on first read', function () {
+      let sandbox;
+      let urlService;
+      let fetchStub;
+      let getUrlForResource;
 
-        beforeAll(function () {
-            manager = makeStubManager();
+      function makeManager() {
+        return new SiteMapManager({
+          posts: new PostGenerator(),
+          pages: new PageGenerator(),
+          tags: new TagGenerator(),
+          authors: new UserGenerator(),
+          urlService,
+          serverEvents: {
+            on: (eventName, callback) => {
+              eventsToRemember[eventName] = callback;
+            },
+          },
+        });
+      }
+
+      // The absolute URL is derived from the domain path the event
+      // carries, so the expectation is computed the same way.
+      const aboutUrl = urlUtils.createUrl('/about/', true);
+
+      function emitAboutRouter() {
+        eventsToRemember.RouteRegistered({
+          type: 'StaticRoutesRouter',
+          id: 'sr1',
+          path: '/about/',
+        });
+      }
+
+      beforeEach(function () {
+        sandbox = sinon.createSandbox();
+        urlService = {
+          getRoutableResources: sinon.stub().resolves([]),
+          getUrlForResource: sinon.stub().returns('http://example.com/x/'),
+        };
+        fetchStub = urlService.getRoutableResources;
+        getUrlForResource = urlService.getUrlForResource;
+
+        // The outer suite stubs PostGenerator.addUrl on the prototype for
+        // the whole file; reset its history and sandbox-stub the rest so
+        // call assertions are scoped to each test.
+        sandbox.stub(PageGenerator.prototype, 'addUrl');
+        sandbox.stub(TagGenerator.prototype, 'addUrl');
+        sandbox.stub(UserGenerator.prototype, 'addUrl');
+        PostGenerator.prototype.addUrl.resetHistory();
+      });
+
+      afterEach(function () {
+        sandbox.restore();
+      });
+
+      it('builds the index from routable resources, skipping /404/ URLs', async function () {
+        fetchStub.withArgs('posts').resolves([
+          { id: 'p1', slug: 'hello' },
+          { id: 'p2', slug: 'orphan' },
+        ]);
+        fetchStub.withArgs('pages').resolves([{ id: 'pg1', slug: 'about' }]);
+        fetchStub.withArgs('tags').resolves([{ id: 't1', slug: 'food' }]);
+        fetchStub.withArgs('authors').resolves([{ id: 'u1', slug: 'jane' }]);
+        getUrlForResource.callsFake(function (resource) {
+          if (resource.id === 'p2') {
+            return urlUtils.createUrl('/404/', true);
+          }
+          return `http://example.com/${resource.type}/${resource.slug}/`;
         });
 
-        it('can create a SiteMapManager instance', function () {
-            assertExists(manager);
-            assert.equal(Object.keys(eventsToRemember).length, 4);
-            assertExists(eventsToRemember['url.added']);
-            assertExists(eventsToRemember['url.removed']);
-            assertExists(eventsToRemember['router.created']);
-            assertExists(eventsToRemember['routers.reset']);
+        await makeManager().getSiteMapXml('posts');
+
+        sinon.assert.calledWith(
+          PostGenerator.prototype.addUrl,
+          'http://example.com/posts/hello/',
+          sinon.match({ id: 'p1' }),
+        );
+        sinon.assert.calledWith(
+          PageGenerator.prototype.addUrl,
+          'http://example.com/pages/about/',
+          sinon.match({ id: 'pg1' }),
+        );
+        sinon.assert.calledWith(
+          TagGenerator.prototype.addUrl,
+          'http://example.com/tags/food/',
+          sinon.match({ id: 't1' }),
+        );
+        sinon.assert.calledWith(
+          UserGenerator.prototype.addUrl,
+          'http://example.com/authors/jane/',
+          sinon.match({ id: 'u1' }),
+        );
+
+        const orphanCalls = PostGenerator.prototype.addUrl
+          .getCalls()
+          .filter((call) => call.args[1] && call.args[1].id === 'p2');
+        assert.equal(orphanCalls.length, 0, 'p2 resolves to /404/ and must not enter the sitemap');
+      });
+
+      it('keeps a real resource whose slug is 404, dropping only the exact sentinel', async function () {
+        fetchStub.withArgs('tags').resolves([{ id: 't404', slug: '404' }]);
+        fetchStub.withArgs('posts').resolves([{ id: 'p1', slug: 'orphan' }]);
+        getUrlForResource.callsFake(function (resource) {
+          if (resource.id === 't404') {
+            return `${urlUtils.urlFor('home', true)}tag/404/`;
+          }
+          return urlUtils.createUrl('/404/', true);
         });
 
-        describe('trigger url events', function () {
-            it('url.added', function () {
-                eventsToRemember['url.added']({
-                    url: {
-                        relative: '/test/',
-                        absolute: 'https://myblog.com/test/'
-                    },
-                    resource: {
-                        config: {
-                            type: 'posts'
-                        },
-                        data: {}
-                    }
-                });
+        await makeManager().getSiteMapXml('posts');
 
-                sinon.assert.calledOnce(PostGenerator.prototype.addUrl);
-            });
+        sinon.assert.calledWith(
+          TagGenerator.prototype.addUrl,
+          sinon.match(/\/tag\/404\/$/),
+          sinon.match({ id: 't404' }),
+        );
+        sinon.assert.notCalled(PostGenerator.prototype.addUrl);
+      });
 
-            it('url.removed', function () {
-                eventsToRemember['url.removed']({
-                    url: {
-                        relative: '/test/',
-                        absolute: 'https://myblog.com/test/'
-                    },
-                    resource: {
-                        config: {
-                            type: 'posts'
-                        },
-                        data: {}
-                    }
-                });
+      it('shares one build between concurrent readers, whichever method they use', async function () {
+        const siteMapManager = makeManager();
 
-                sinon.assert.calledOnce(PostGenerator.prototype.removeUrl);
-            });
+        await Promise.all([siteMapManager.getIndexXml(), siteMapManager.getSiteMapXml('posts')]);
 
-            it('Listens to URLResourceUpdatedEvent event', async function () {
-                sinon.stub(PostGenerator.prototype, 'updateURL').resolves(true);
-                DomainEvents.dispatch(URLResourceUpdatedEvent.create({
-                    id: 'post_id',
-                    resourceType: 'posts'
-                }));
-                await DomainEvents.allSettled();
+        // One build = one fetch per type.
+        sinon.assert.callCount(fetchStub, 4);
+      });
 
-                sinon.assert.calledOnce(PostGenerator.prototype.updateURL);
-            });
+      it('serves from the built index without refetching', async function () {
+        const siteMapManager = makeManager();
+
+        await siteMapManager.getSiteMapXml('posts');
+        await siteMapManager.getSiteMapXml('posts');
+
+        sinon.assert.callCount(fetchStub, 4);
+      });
+
+      it('rebuilds after site.changed empties the index', async function () {
+        const siteMapManager = makeManager();
+        await siteMapManager.getSiteMapXml('posts');
+
+        eventsToRemember['site.changed']();
+        await siteMapManager.getSiteMapXml('posts');
+
+        sinon.assert.callCount(fetchStub, 8);
+      });
+
+      it('resets the generators at the start of every apply so a rebuild holds no dropped resources', async function () {
+        sandbox.stub(PostGenerator.prototype, 'reset');
+        const siteMapManager = makeManager();
+        await siteMapManager.getSiteMapXml('posts');
+
+        eventsToRemember['site.changed']();
+        await siteMapManager.getSiteMapXml('posts');
+
+        // Once per build. Without this, a post unpublished between builds
+        // would stay in the sitemap forever.
+        sinon.assert.calledTwice(PostGenerator.prototype.reset);
+      });
+
+      it('replays static/collection route entries into every rebuild', async function () {
+        const siteMapManager = makeManager();
+        emitAboutRouter();
+        PageGenerator.prototype.addUrl.resetHistory();
+
+        await siteMapManager.getSiteMapXml('posts');
+
+        // The expectation is computed the same way the subscriber
+        // computes it, so anchor its shape: the domain path the event
+        // carries has to reach the sitemap absolutised.
+        assert.match(aboutUrl, /^https?:\/\/.+\/about\/$/);
+        // RouteRegistered only fires at boot and routes reload; the entry
+        // must survive the apply-phase generator reset.
+        sinon.assert.calledWith(
+          PageGenerator.prototype.addUrl,
+          aboutUrl,
+          sinon.match({ id: 'sr1' }),
+        );
+      });
+
+      it('rebuilds after a router registers, so a reload window cannot pin a routerless index', async function () {
+        const siteMapManager = makeManager();
+        await siteMapManager.getSiteMapXml('posts');
+        sinon.assert.callCount(fetchStub, 4);
+
+        emitAboutRouter();
+
+        await siteMapManager.getSiteMapXml('posts');
+        sinon.assert.callCount(fetchStub, 8);
+      });
+
+      it('forgets recorded route entries when RoutesReset fires', async function () {
+        const siteMapManager = makeManager();
+        emitAboutRouter();
+
+        eventsToRemember.RoutesReset();
+        PageGenerator.prototype.addUrl.resetHistory();
+        await siteMapManager.getSiteMapXml('posts');
+
+        // The routers re-register right after a reset and refill the
+        // list; a stale entry here would resurrect a deleted route.
+        sinon.assert.neverCalledWith(
+          PageGenerator.prototype.addUrl,
+          aboutUrl,
+          sinon.match({ id: 'sr1' }),
+        );
+      });
+
+      it('fails a read with a 503 when the build is invalidated mid-flight, and rebuilds on the next read', async function () {
+        let resolveFirstFetch;
+        fetchStub
+          .withArgs('posts')
+          .onFirstCall()
+          .returns(
+            new Promise((resolve) => {
+              resolveFirstFetch = () => resolve([]);
+            }),
+          )
+          .onSecondCall()
+          .resolves([]);
+
+        const siteMapManager = makeManager();
+        const reader = siteMapManager.getSiteMapXml('posts');
+
+        eventsToRemember['site.changed']();
+        resolveFirstFetch();
+
+        // Never serve pre-invalidation data: a stale 200 would be
+        // pinned by the CDN for the full cache maxAge. A 503 is
+        // retried by crawlers and stored by nobody.
+        await assert.rejects(reader, (err) => {
+          assert.equal(err.statusCode, 503);
+          assert.equal(err.code, 'SITEMAP_BUILD_SUPERSEDED');
+          return true;
         });
 
-        it('fn: getSiteMapXml', function () {
-            PostGenerator.prototype.getXml.returns('xml');
-            assert.equal(manager.getSiteMapXml('posts'), 'xml');
-            sinon.assert.calledOnce(PostGenerator.prototype.getXml);
-        });
+        // The next read starts fresh and succeeds.
+        await siteMapManager.getSiteMapXml('posts');
+        sinon.assert.callCount(fetchStub, 8);
+      });
 
-        it('fn: getIndexXml', function () {
-            IndexGenerator.prototype.getXml.returns('xml');
-            assert.equal(manager.getIndexXml(), 'xml');
-            sinon.assert.calledOnce(IndexGenerator.prototype.getXml);
-        });
+      it('rejects readers when the build fails and retries on the next read', async function () {
+        fetchStub
+          .withArgs('tags')
+          .onFirstCall()
+          .rejects(new Error('connection lost'))
+          .onSecondCall()
+          .resolves([]);
+
+        const siteMapManager = makeManager();
+
+        await assert.rejects(siteMapManager.getSiteMapXml('posts'), /connection lost/);
+        await siteMapManager.getSiteMapXml('posts');
+      });
     });
 
-    describe('SiteMapManager (lazyRouting mode)', function () {
-        let lazyEvents;
-
-        beforeAll(function () {
-            lazyEvents = {};
-            // Replace the events.on stub for this block so we can capture
-            // subscriptions made by a manager constructed with lazyRouting on.
-            events.on.restore();
-            sinon.stub(events, 'on').callsFake((eventName, callback) => {
-                lazyEvents[eventName] = callback;
-            });
-
-            new SiteMapManager({
-                posts: new PostGenerator(),
-                pages: new PageGenerator(),
-                tags: new TagGenerator(),
-                authors: new UserGenerator(),
-                lazyRouting: true
-            });
-        });
-
-        it('skips url.added and url.removed event subscriptions', function () {
-            assert.equal(lazyEvents['url.added'], undefined);
-            assert.equal(lazyEvents['url.removed'], undefined);
-        });
-
-        it('still subscribes to router.created and routers.reset', function () {
-            assertExists(lazyEvents['router.created']);
-            assertExists(lazyEvents['routers.reset']);
-        });
-
-        it('ensurePopulatedFromDatabase is a no-op when lazyRouting is off', async function () {
-            const eagerManager = new SiteMapManager({
-                posts: new PostGenerator(),
-                pages: new PageGenerator(),
-                tags: new TagGenerator(),
-                authors: new UserGenerator(),
-                lazyRouting: false
-            });
-            // Should resolve without touching the DB.
-            await eagerManager.ensurePopulatedFromDatabase();
-        });
+    it('fn: getSiteMapXml', async function () {
+      PostGenerator.prototype.getXml.resetHistory();
+      PostGenerator.prototype.getXml.returns('xml');
+      assert.equal(await manager.getSiteMapXml('posts'), 'xml');
+      sinon.assert.calledOnce(PostGenerator.prototype.getXml);
     });
 
-    // The lazy populate path is the only mechanism that fills the sitemap when
-    // url.added/url.removed events do not fire. These tests exercise it as a
-    // unit: stub the model layer + the URL facade and assert addUrl is called
-    // for the right resources.
-    describe('_populateFromDatabase', function () {
-        let sandbox;
-        let fetchAll;
-        let getUrlForResource;
-
-        const models = require('../../../../../core/server/models');
-        const urlServiceModule = require('../../../../../core/server/services/url');
-
-        // The outer suite stubs PostGenerator.prototype.addUrl globally, so
-        // we can't (re)stub it on a fresh instance. Reset the shared post
-        // stub and use a per-test sandbox for everything else so a partial
-        // beforeEach failure can't leak stubs across cases.
-        beforeEach(function () {
-            sandbox = sinon.createSandbox();
-            // The lazy sitemap populate goes through raw_knex.fetchAll —
-            // the same fast path the eager URL service uses
-            // (services/url/resources.js). All four resource types route
-            // through this single static method, discriminated by
-            // `modelName` and `filter` in the options.
-            fetchAll = sandbox.stub(models.Base.Model.raw_knex, 'fetchAll');
-            fetchAll.resolves([]);
-
-            sandbox.stub(PageGenerator.prototype, 'addUrl');
-            sandbox.stub(TagGenerator.prototype, 'addUrl');
-            sandbox.stub(UserGenerator.prototype, 'addUrl');
-            PostGenerator.prototype.addUrl.resetHistory();
-
-            // Method-level stub on the singleton facade method the sitemap
-            // actually reads. Sandbox.restore() puts it back even if a sibling
-            // beforeEach throws partway.
-            getUrlForResource = sandbox.stub(urlServiceModule.facade, 'getUrlForResource');
-        });
-
-        afterEach(function () {
-            sandbox.restore();
-        });
-
-        function makeLazyManager() {
-            return new SiteMapManager({
-                posts: new PostGenerator(),
-                pages: new PageGenerator(),
-                tags: new TagGenerator(),
-                authors: new UserGenerator(),
-                lazyRouting: true
-            });
-        }
-
-        const postsMatcher = sinon.match({modelName: 'Post', filter: 'status:published+type:post'});
-        const pagesMatcher = sinon.match({modelName: 'Post', filter: 'status:published+type:page'});
-        const tagsMatcher = sinon.match({modelName: 'Tag'});
-        const authorsMatcher = sinon.match({modelName: 'User'});
-
-        it('feeds non-/404/ URLs into the per-type generators', async function () {
-            fetchAll.withArgs(postsMatcher).resolves([{id: 'p1', slug: 'hello', type: 'post'}]);
-            fetchAll.withArgs(pagesMatcher).resolves([{id: 'pg1', slug: 'about', type: 'page'}]);
-            fetchAll.withArgs(tagsMatcher).resolves([{id: 't1', slug: 'food'}]);
-            fetchAll.withArgs(authorsMatcher).resolves([{id: 'u1', slug: 'jane'}]);
-
-            getUrlForResource.callsFake((resource) => {
-                if (resource.id === 'p1') {
-                    return 'http://example.com/hello/';
-                }
-                if (resource.id === 'pg1') {
-                    return 'http://example.com/about/';
-                }
-                if (resource.id === 't1') {
-                    return 'http://example.com/tag/food/';
-                }
-                if (resource.id === 'u1') {
-                    return 'http://example.com/author/jane/';
-                }
-                return '/404/';
-            });
-
-            const manager = makeLazyManager();
-            await manager.ensurePopulatedFromDatabase();
-
-            sinon.assert.calledWith(PostGenerator.prototype.addUrl, 'http://example.com/hello/', sinon.match({id: 'p1'}));
-            sinon.assert.calledWith(PageGenerator.prototype.addUrl, 'http://example.com/about/', sinon.match({id: 'pg1'}));
-            sinon.assert.calledWith(TagGenerator.prototype.addUrl, 'http://example.com/tag/food/', sinon.match({id: 't1'}));
-            sinon.assert.calledWith(UserGenerator.prototype.addUrl, 'http://example.com/author/jane/', sinon.match({id: 'u1'}));
-        });
-
-        it('preloads tags+authors for posts so primary_tag permalinks resolve', async function () {
-            getUrlForResource.returns('http://example.com/x/');
-
-            await makeLazyManager().ensurePopulatedFromDatabase();
-
-            // Sites using `/:primary_tag/:slug/` permalinks need
-            // `primary_tag` populated on the resource. raw_knex.fetchAll
-            // attaches relations listed in withRelated and runs Post.toJSON
-            // per row; toJSON's computed primary_tag/primary_author fields
-            // only fire when the underlying tags/authors relation is loaded,
-            // so `withRelated: ['tags', 'authors']` is the load-bearing key
-            // here.
-            sinon.assert.calledWith(fetchAll, sinon.match({
-                modelName: 'Post',
-                filter: 'status:published+type:post',
-                withRelated: ['tags', 'authors']
-            }));
-        });
-
-        it('excludes heavy post body columns from the fetch so a large site does not OOM', async function () {
-            getUrlForResource.returns('http://example.com/x/');
-
-            await makeLazyManager().ensurePopulatedFromDatabase();
-
-            // The sitemap only needs slug + dates + the primary_tag/author
-            // computed fields. Without `exclude`, raw_knex.fetchAll falls
-            // through to `SELECT *` and loads multi-MB mobiledoc/lexical/
-            // html/plaintext columns for every post into memory at once.
-            // Mirrors the eager URL service's exclude list at
-            // services/url/config.js.
-            sinon.assert.calledWith(fetchAll, sinon.match({
-                modelName: 'Post',
-                filter: 'status:published+type:post',
-                exclude: sinon.match.array
-                    .contains(['mobiledoc', 'lexical', 'html', 'plaintext'])
-            }));
-            sinon.assert.calledWith(fetchAll, sinon.match({
-                modelName: 'Post',
-                filter: 'status:published+type:page',
-                exclude: sinon.match.array
-                    .contains(['mobiledoc', 'lexical', 'html', 'plaintext'])
-            }));
-        });
-
-        it('queries tags and authors with visibility:public + shouldHavePosts to mirror the eager URL service', async function () {
-            getUrlForResource.returns('http://example.com/x/');
-
-            await makeLazyManager().ensurePopulatedFromDatabase();
-
-            // shouldHavePosts at the raw_knex layer is the gate that the
-            // TagPublic/Author scoped models used to apply. Without it,
-            // tags/users with no published posts would appear in the
-            // sitemap (and in particular staff User accounts could be
-            // exposed by author-slug guessing).
-            sinon.assert.calledWith(fetchAll, sinon.match({
-                modelName: 'Tag',
-                filter: 'visibility:public',
-                shouldHavePosts: {joinTo: 'tag_id', joinTable: 'posts_tags'}
-            }));
-            sinon.assert.calledWith(fetchAll, sinon.match({
-                modelName: 'User',
-                filter: 'visibility:public',
-                shouldHavePosts: {joinTo: 'author_id', joinTable: 'posts_authors'}
-            }));
-        });
-
-        it('skips resources whose URL would be /404/', async function () {
-            fetchAll.withArgs(postsMatcher).resolves([
-                {id: 'p1', slug: 'good', type: 'post'},
-                {id: 'p2', slug: 'orphan', type: 'post'}
-            ]);
-
-            getUrlForResource.callsFake((resource) => {
-                return resource.id === 'p1' ? 'http://example.com/good/' : '/404/';
-            });
-
-            const manager = makeLazyManager();
-            await manager.ensurePopulatedFromDatabase();
-
-            sinon.assert.calledWith(PostGenerator.prototype.addUrl, 'http://example.com/good/', sinon.match({id: 'p1'}));
-            const p2Calls = PostGenerator.prototype.addUrl.getCalls().filter(c => c.args[1] && c.args[1].id === 'p2');
-            assert.equal(p2Calls.length, 0, 'p2 should be skipped because its URL is /404/');
-        });
-
-        it('a settled stale populate does not clobber a successor populate handle', async function () {
-            // T1 starts populate (slow), T1 awaits DB.
-            // routers.reset fires → _populating cleared, generation bumped.
-            // T2 starts populate (also slow) → owns _populating now.
-            // T1 finally settles. Bug: T1's `.then` would set _populating=null,
-            // orphaning T2 and letting a T3 race in alongside T2.
-            // Fix: only clear _populating if it still points to T1's promise.
-            let unblockT1;
-            let unblockT2;
-            fetchAll.withArgs(postsMatcher)
-                .onFirstCall().returns(new Promise((resolve) => {
-                    unblockT1 = () => resolve([]);
-                }))
-                .onSecondCall().returns(new Promise((resolve) => {
-                    unblockT2 = () => resolve([]);
-                }));
-            getUrlForResource.returns('http://example.com/x/');
-
-            const manager = makeLazyManager();
-
-            const t1 = manager.ensurePopulatedFromDatabase();
-            const resetHandlers = events.on
-                .getCalls()
-                .filter(c => c.args[0] === 'routers.reset')
-                .map(c => c.args[1]);
-            resetHandlers.forEach(handler => handler());
-
-            const t2 = manager.ensurePopulatedFromDatabase();
-            assertExists(manager._populating, 'T2 must own the populate handle after reset');
-            const t2Handle = manager._populating;
-
-            // T1 settles before T2. The buggy version null'd _populating here.
-            unblockT1();
-            await t1;
-            assert.equal(
-                manager._populating,
-                t2Handle,
-                'T1 settling must not clobber T2\'s in-flight populate handle'
-            );
-
-            unblockT2();
-            await t2;
-        });
-
-        it('routers.reset during a populate cancels the populate via the generation token', async function () {
-            // The posts fetchAll call hangs until we explicitly resolve it,
-            // simulating a slow DB load that races with a routes.yaml reload.
-            let unblockPopulate;
-            fetchAll.withArgs(postsMatcher)
-                .returns(new Promise((resolve) => {
-                    unblockPopulate = () => resolve([]);
-                }));
-            getUrlForResource.returns('http://example.com/x/');
-
-            const manager = makeLazyManager();
-
-            const inFlight = manager.ensurePopulatedFromDatabase();
-            // The outer suite has stubbed events.on; the manager registered
-            // its routers.reset handler via that stub. Locate and invoke it.
-            const resetHandlers = events.on
-                .getCalls()
-                .filter(c => c.args[0] === 'routers.reset')
-                .map(c => c.args[1]);
-            resetHandlers.forEach(handler => handler());
-
-            unblockPopulate();
-            await inFlight;
-
-            // Behavioural assertion: a subsequent ensurePopulatedFromDatabase
-            // must re-issue the DB queries because the previous populate's
-            // result was invalidated by the routers.reset. (Asserting on the
-            // private `_populated` flag would couple to internal state.)
-            const callsBefore = fetchAll.callCount;
-            await manager.ensurePopulatedFromDatabase();
-            assert.ok(
-                fetchAll.callCount > callsBefore,
-                'A reset mid-populate must invalidate the in-flight result so the next call re-queries'
-            );
-        });
+    it('fn: getIndexXml', async function () {
+      IndexGenerator.prototype.getXml.resetHistory();
+      IndexGenerator.prototype.getXml.returns('xml');
+      assert.equal(await manager.getIndexXml(), 'xml');
+      sinon.assert.calledOnce(IndexGenerator.prototype.getXml);
     });
+  });
 });
